@@ -29,8 +29,8 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	// set lastIndex according to last or visible bar
 	if (CalculateWhileScrolling.GetInt() == 1) {
 		lastIndex = sc.IndexOfLastVisibleBar;
-	} else {
-		lastIndex = sc.Index;
+	} else {		
+		lastIndex = sc.GetPersistentInt(0); 
 	}
 	int &lastIndexProcessed = sc.GetPersistentInt(0); 
 
@@ -42,7 +42,7 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	
 	// Process only when lastIndex changed
 	if (lastIndex == lastIndexProcessed) { 
-		//return;
+		//return;  // commented out by Frozen to allow input changes to update
 	}
 	
 	// calc bar ranges 
