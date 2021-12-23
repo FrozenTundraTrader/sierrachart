@@ -2,6 +2,10 @@
 
 SCDLLName("Frozen Tundra Discord Room Studies")
 
+/*
+	Written by Malykubo and Frozen Tundra in FatCat's Discord Room
+*/
+
 SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 {
 	
@@ -9,7 +13,8 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	SCInputRef CalculateWhileScrolling = sc.Input[1];
 	SCInputRef LookbackInterval = sc.Input[2];
 	SCInputRef MagicNumber = sc.Input[3];
-
+	SCString log_message;
+	
     // Configuration
     if (sc.SetDefaults)
     {
@@ -19,38 +24,34 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 		CalculateWhileScrolling.Name = "Calculate while scrolling?";
 		CalculateWhileScrolling.SetYesNo(1);
 		LookbackInterval.Name = "Lookback Interval # Bars";
-		LookbackInterval.SetInt(5);
+		LookbackInterval.SetInt(6);
 		MagicNumber.Name = "Magic Multiplier (ticks)";
-		MagicNumber.SetFloat(0.25);
+		MagicNumber.SetFloat(0.3);
         return;
     }
 	
-	int lastIndex;
+	int currentIndex = sc.Index;
+	int lastIndex = sc.ArraySize - 1;	
 	// set lastIndex according to last or visible bar
 	if (CalculateWhileScrolling.GetInt() == 1) {
 		lastIndex = sc.IndexOfLastVisibleBar;
-	} else {		
-		lastIndex = sc.GetPersistentInt(0); 
 	}
-	int &lastIndexProcessed = sc.GetPersistentInt(0); 
-
-	// Don't process on startups nor recalculations. 
-	if (lastIndex == 0) { 
-		lastIndexProcessed = -1; 
-		return; 
-	} 
 	
-	// Process only when lastIndex changed
-	if (lastIndex == lastIndexProcessed) { 
-		//return;  // commented out by Frozen to allow input changes to update
-	}
+	log_message.Format("currentIndex=%d, lastIndex=%d, sc.Index=%d, sc.GetPersistentInt=%d", currentIndex, lastIndex, sc.Index, sc.GetPersistentInt(0));
+	if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
 	
 	// calc bar ranges 
 	float bar_diff_sums = 0;
 	float tmp_bar_diff = 0;
 	int lookback_interval = LookbackInterval.GetInt();
-	for (int i=lastIndex; i>lastIndex - lookback_interval; i--) {
+	
+	log_message.Format("Heading into for loop, lastIndex=%d, lookback_interval=%d", lastIndex,  lookback_interval);
+	if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
+	
+	for (int i=lastIndex - lookback_interval; i<lastIndex; i++) {
 		tmp_bar_diff = sc.BaseData[SC_HIGH][i] - sc.BaseData[SC_LOW][i];
+		log_message.Format("lastIndex=%d, i=%d, bar_diff=%f", lastIndex, i, tmp_bar_diff);
+		if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
 		bar_diff_sums += tmp_bar_diff;
 	}
 		
@@ -65,19 +66,14 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	
 	// Change VAP only on change
 	if (sc.VolumeAtPriceMultiplier != vap) {
+		log_message.Format("curr vap=%d, new vap=%d", sc.VolumeAtPriceMultiplier, vap);
+		if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
 		sc.VolumeAtPriceMultiplier = vap;
+		log_message.Format("VAP has been updated to %d", sc.VolumeAtPriceMultiplier);
+		if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
 	}
 	
-	// update last proc'd idx
-	lastIndexProcessed = lastIndex; 
-
-	// debug
-	if (DebugOn.GetInt() == 1) {
-		SCString log_message;
-		//log_message.Format("Target Volume At Price Multipler: %d", magic_number);
-		//sc.AddMessageToLog(log_message, 1);
-		
-		log_message.Format("Idx to calc from: %d, Bar High: %f, Bar Low: %f, Bar Diff: %f, VAP: %d", lastIndexProcessed, sc.High[lastIndexProcessed], sc.Low[lastIndexProcessed], bar_diff, vap);
-		sc.AddMessageToLog(log_message, 1);
-	}
+	log_message.Format("Idx to calc from: %d, Bar High: %f, Bar Low: %f, Bar Diff: %f, VAP: %d", lastIndex, sc.High[lastIndex], sc.Low[lastIndex], bar_diff, vap);
+	if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
 }
+
