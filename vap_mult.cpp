@@ -42,7 +42,7 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	
 	// Process only when lastIndex changed
 	if (lastIndex == lastIndexProcessed) { 
-		return;
+		//return;
 	}
 	
 	// calc bar ranges 
@@ -77,7 +77,7 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 		//log_message.Format("Target Volume At Price Multipler: %d", magic_number);
 		//sc.AddMessageToLog(log_message, 1);
 		
-		log_message.Format("Idx to calc from: %d, Bar High: %f, Bar Low: %f, Bar Diff: %f, VAP: %d", idx_to_calc_from, sc.High[idx_to_calc_from], sc.Low[idx_to_calc_from], bar_diff, vap);
+		log_message.Format("Idx to calc from: %d, Bar High: %f, Bar Low: %f, Bar Diff: %f, VAP: %d", lastIndexProcessed, sc.High[lastIndexProcessed], sc.Low[lastIndexProcessed], bar_diff, vap);
 		sc.AddMessageToLog(log_message, 1);
 	}
 }
