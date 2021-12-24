@@ -59,15 +59,22 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	float magic_number = MagicNumber.GetFloat();
 	int vap = sc.Round(bar_diff / magic_number);
 	
+	// futures with tick sizes more than one penny will require us to adjust
+	// the formula we use to calculate visually appealing VAP:
+	if (sc.TickSize > 0.01) {
+		vap = sc.Round(bar_diff * magic_number * sc.TickSize);
+	}
+	
 	// safety check for setting VAP
 	if (vap == 0) {
 		vap = 1;
 	}
-	
+		
 	// Change VAP only on change
 	if (sc.VolumeAtPriceMultiplier != vap) {
 		log_message.Format("curr vap=%d, new vap=%d", sc.VolumeAtPriceMultiplier, vap);
 		if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
+		
 		sc.VolumeAtPriceMultiplier = vap;
 		log_message.Format("VAP has been updated to %d", sc.VolumeAtPriceMultiplier);
 		if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
