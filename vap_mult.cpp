@@ -61,10 +61,29 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 		lastIndex = sc.UpdateStartIndex;
 	}
 
+	// Check for input changes. If input got changed we want to recalculate
+	int input_changed = 0;
+	if (CalculateWhileScrolling.GetInt() != sc.GetPersistentInt(calculateWhileScrollingKey) ||
+		LookbackInterval.GetInt() != sc.GetPersistentInt(lookbackIntervalKey) ||
+		MagicNumber.GetFloat() != sc.GetPersistentFloat(magicNumberKey)) {
+			sc.SetPersistentInt(calculateWhileScrollingKey, CalculateWhileScrolling.GetInt());
+			sc.SetPersistentInt(lookbackIntervalKey, LookbackInterval.GetInt());
+			sc.SetPersistentInt(magicNumberKey, MagicNumber.GetFloat());
+			input_changed = 1;
+			log_message.Format("Input changed");
+			if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
+	}
+
+	// Process only when lastIndex or input changed
+	if (lastIndex == lastIndexProcessed && input_changed == 0) { 
+		return;
 	}
 	
-	log_message.Format("currentIndex=%d, lastIndex=%d, sc.Index=%d, sc.GetPersistentInt=%d", currentIndex, lastIndex, sc.Index, sc.GetPersistentInt(0));
+	log_message.Format("lastIndex=%d, sc.GetPersistentInt=%d", lastIndex, sc.GetPersistentInt(0));
 	if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
+
+	// Set new persistent lastIndex to be last one preventing future updates
+	lastIndexProcessed = lastIndex;
 	
 	// calc bar ranges 
 	float bar_diff_sums = 0;
@@ -109,4 +128,3 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	log_message.Format("Idx to calc from: %d, Bar High: %f, Bar Low: %f, Bar Diff: %f, VAP: %d", lastIndex, sc.High[lastIndex], sc.Low[lastIndex], bar_diff, vap);
 	if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
 }
-
