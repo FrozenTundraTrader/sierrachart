@@ -42,12 +42,25 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 
         return;
     }
-	
-	int currentIndex = sc.Index;
-	int lastIndex = sc.ArraySize - 1;	
+
+	int lastIndex;
+	int &lastIndexProcessed = sc.GetPersistentInt(lastIndexKey);
+
+	// Don't process on startups nor recalculations. 
+	if (sc.UpdateStartIndex == 0) { 
+		return; 
+	}
+
 	// set lastIndex according to last or visible bar
 	if (CalculateWhileScrolling.GetInt() == 1) {
+		sc.UpdateAlways = 1;
 		lastIndex = sc.IndexOfLastVisibleBar;
+	} else {
+		sc.UpdateAlways = 0;
+		// UpdateStartIndex has to be used when autoloop is set to 0 (default value)
+		lastIndex = sc.UpdateStartIndex;
+	}
+
 	}
 	
 	log_message.Format("currentIndex=%d, lastIndex=%d, sc.Index=%d, sc.GetPersistentInt=%d", currentIndex, lastIndex, sc.Index, sc.GetPersistentInt(0));
