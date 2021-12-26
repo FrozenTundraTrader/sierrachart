@@ -48,6 +48,7 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 
 	// Don't process on startups nor recalculations. 
 	if (sc.UpdateStartIndex == 0) { 
+		lastIndexProcessed = -1;
 		return; 
 	}
 
