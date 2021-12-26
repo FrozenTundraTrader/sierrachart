@@ -14,6 +14,12 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	SCInputRef LookbackInterval = sc.Input[2];
 	SCInputRef MagicNumber = sc.Input[3];
 	SCString log_message;
+
+	// keys for persistent dictionaries
+	int lastIndexKey = 0;
+	int calculateWhileScrollingKey = 1;
+	int lookbackIntervalKey = 2;
+	int magicNumberKey = 3;
 	
     // Configuration
     if (sc.SetDefaults)
@@ -21,12 +27,19 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 		sc.GraphRegion = 0;
 		DebugOn.Name = "Debug Enabled?";
 		DebugOn.SetYesNo(0);
+
 		CalculateWhileScrolling.Name = "Calculate while scrolling?";
 		CalculateWhileScrolling.SetYesNo(1);
+		sc.SetPersistentInt(calculateWhileScrollingKey, 1);
+
 		LookbackInterval.Name = "Lookback Interval # Bars";
 		LookbackInterval.SetInt(6);
+		sc.SetPersistentInt(lookbackIntervalKey, 6);
+
 		MagicNumber.Name = "Magic Multiplier (ticks)";
 		MagicNumber.SetFloat(0.3);
+		sc.SetPersistentFloat(magicNumberKey, 0.3);
+
         return;
     }
 	
