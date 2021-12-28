@@ -88,6 +88,7 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	
 	// calc bar ranges 
 	float bar_diff_sums = 0;
+	float bar_diff_max = 0;
 	float tmp_bar_diff = 0;
 	int lookback_interval = LookbackInterval.GetInt();
 	
@@ -96,14 +97,18 @@ SCSFExport scsf_ChangeVolAtPriceMult(SCStudyInterfaceRef sc)
 	
 	for (int i=lastIndex - lookback_interval; i<lastIndex; i++) {
 		tmp_bar_diff = sc.BaseData[SC_HIGH][i] - sc.BaseData[SC_LOW][i];
-		log_message.Format("lastIndex=%d, i=%d, bar_diff=%f", lastIndex, i, tmp_bar_diff);
+		bar_diff_max = max(bar_diff_max, tmp_bar_diff);
+		log_message.Format("lastIndex=%d, i=%d, bar_diff=%f, bar_diff_max:%f", lastIndex, i, tmp_bar_diff, bar_diff_max);
 		if (DebugOn.GetInt() == 1) sc.AddMessageToLog(log_message, 1);
 		bar_diff_sums += tmp_bar_diff;
 	}
 		
 	float bar_diff = bar_diff_sums / lookback_interval;
 	float magic_number = MagicNumber.GetFloat();
-	int vap = sc.Round(bar_diff / magic_number);
+
+	// Use average or max height
+	//int vap = sc.Round(bar_diff / magic_number);
+	int vap = sc.Round(bar_diff_max / magic_number);
 	
 	// futures with tick sizes more than one penny will require us to adjust
 	// the formula we use to calculate visually appealing VAP:
