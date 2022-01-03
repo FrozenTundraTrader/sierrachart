@@ -93,17 +93,32 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
 	
 	// fetch the arrays of data
 	int *p_bidAvgLots = (int *)sc.GetPersistentPointer(0);
-	int *p_askAvgLots = (int *)sc.GetPersistentPointer(1);
+	int *p_askAvgLots = (int *)sc.GetPersistentPointer(1);	
+		
+	// scale calculations
+	float vHigh, vLow;
+	int yHigh, yLow;
+	// fetch max and min price values visible on chart
+    sc.GetMainGraphVisibleHighAndLow(vHigh, vLow);
+	//msg.Format("H=%f, L=%f", vHigh, vLow);
+	//sc.AddMessageToLog(msg, 1);
+	// fetch the y-axis coordinates of high and low price values
+	yHigh = sc.RegionValueToYPixelCoordinate(vHigh, sc.GraphRegion);
+	yLow = sc.RegionValueToYPixelCoordinate(vLow, sc.GraphRegion);
+	//msg.Format("%d x %d", yHigh, yLow);
+	//sc.AddMessageToLog(msg, 1);
+	// calculate a "tick size" for our study to space things out evenly
+	int tickSize = (int)sc.Round(((yLow - yHigh) / num_levels) / 2);
 	
 	for (int i=0; i<num_levels; i++) {
 		
 		// calculate coords
 		bidY = sc.RegionValueToYPixelCoordinate(sc.Close[sc.Index], sc.GraphRegion);
 		// spacing for visuals
-		bidY += (i * 30);
-		askY = sc.RegionValueToYPixelCoordinate(sc.Close[sc.Index], sc.GraphRegion) - 30;
+		bidY += (i * tickSize);
+		askY = sc.RegionValueToYPixelCoordinate(sc.Close[sc.Index], sc.GraphRegion) - tickSize;
 		// spacing for visuals
-		askY -= (i * 30);
+		askY -= (i * tickSize);
 		
 		// munge bid side text together
 		msg.Format("%d", *(p_bidAvgLots + i));
