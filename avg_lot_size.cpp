@@ -1,6 +1,6 @@
 #include "sierrachart.h"
 
-SCDLLName("Frozen Tundra Discord Room Studies")
+SCDLLName("Frozen Tundra - Guitarmadillo")
 
 /*
 	Written by Malykubo and Frozen Tundra in FatCat's Discord Room
@@ -12,7 +12,19 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc);
 
 SCSFExport scsf_AverageLotSize(SCStudyInterfaceRef sc)
 {
+	// number of depth levels to calculate avg lots for
 	SCInputRef NumberOfLevels = sc.Input[0];
+	
+	// number of decimal points to display for the avg lots
+	SCInputRef NumberOfDecimals = sc.Input[1];
+	
+	// font size to render avg lots 
+	SCInputRef FontSize = sc.Input[2];
+	
+	// spacing padding to align numbers to DOM prices
+	SCInputRef VerticalOffset = sc.Input[3];
+	
+	// logging object
 	SCString log_message;
 	
     // Configuration
@@ -22,6 +34,13 @@ SCSFExport scsf_AverageLotSize(SCStudyInterfaceRef sc)
 		sc.UsesMarketDepthData = 1;
 		NumberOfLevels.Name = "Number of Levels";
 		NumberOfLevels.SetInt(5);
+		NumberOfDecimals.Name = "Number Of Decimals";
+		NumberOfDecimals.SetInt(1);
+		NumberOfDecimals.SetIntLimits(0, 2);
+		FontSize.Name = "Font Size";
+		FontSize.SetInt(22);
+		VerticalOffset.Name = "Vertical Offset in Pixels";
+		VerticalOffset.SetInt(10);
         return;
     }
 	
@@ -33,17 +52,15 @@ SCSFExport scsf_AverageLotSize(SCStudyInterfaceRef sc)
 	
 	// used for calculating avg lot sizes
 	float bid_avg_lot = 0;
-	int i_bid_avg_lot = 0;
 	float ask_avg_lot = 0;
-	int i_ask_avg_lot = 0;
 	
 	// pointers to dynamically allocated arrays
-	int *p_bidAvgLots;
-	int *p_askAvgLots;
+	float *p_bidAvgLots;
+	float *p_askAvgLots;
 				
 	// malloc memory for arrays
-	p_bidAvgLots = (int *) sc.AllocateMemory( 1024 * sizeof(int) );
-	p_askAvgLots = (int *) sc.AllocateMemory( 1024 * sizeof(int) );
+	p_bidAvgLots = (float *) sc.AllocateMemory( 1024 * sizeof(float) );
+	p_askAvgLots = (float *) sc.AllocateMemory( 1024 * sizeof(float) );
 	
 	// grab market depth data
 	for (int i=0; i<num_levels; i++) {
@@ -57,18 +74,11 @@ SCSFExport scsf_AverageLotSize(SCStudyInterfaceRef sc)
 		// the calculations for avg lot size
 		bid_avg_lot = (float)bid_mde.Quantity / bid_mde.NumOrders;
 		ask_avg_lot = (float)ask_mde.Quantity / ask_mde.NumOrders;
-	
-		// round them out to ints
-		i_bid_avg_lot = (int)sc.Round(bid_avg_lot);
-		i_ask_avg_lot = (int)sc.Round(ask_avg_lot);
 		
 		// store in arrays
-		p_bidAvgLots[i] = i_bid_avg_lot;
-		p_askAvgLots[i] = i_ask_avg_lot;
-	
-		//log_message.Format("??? bidAvg=%d x askAvg=%d", i_bid_avg_lot, i_ask_avg_lot);
-		//log_message.Format(">>> bidAvg=%d x askAvg=%d", bidAvgLots[i], askAvgLots[i]);
-		//sc.AddMessageToLog(log_message, 1);
+		p_bidAvgLots[i] = bid_avg_lot;
+		p_askAvgLots[i] = ask_avg_lot;
+
 	}
 	
 	// we need these data to persist to our windows GDI call
@@ -87,53 +97,78 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
 	int num_levels = sc.GetPersistentInt(0);
 	int bidX = sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_GENERAL_PURPOSE_1);
 	int bidY;
-	int askX = bidX + 30; //sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_GENERAL_PURPOSE_2);
+	int askX = bidX;
 	int askY;
 	SCString msg;
 	
 	// fetch the arrays of data
-	int *p_bidAvgLots = (int *)sc.GetPersistentPointer(0);
-	int *p_askAvgLots = (int *)sc.GetPersistentPointer(1);	
-		
-	// scale calculations
-	float vHigh, vLow;
-	int yHigh, yLow;
-	// fetch max and min price values visible on chart
-    sc.GetMainGraphVisibleHighAndLow(vHigh, vLow);
-	//msg.Format("H=%f, L=%f", vHigh, vLow);
+	float *p_bidAvgLots = (float *)sc.GetPersistentPointer(0);
+	float *p_askAvgLots = (float *)sc.GetPersistentPointer(1);	
+	float lastPrice = sc.Close[sc.Index];
+	float plotPrice = 0;
+	//msg.Format("tickSize=%f, lastPrice=%f", tickSize, lastPrice);
 	//sc.AddMessageToLog(msg, 1);
-	// fetch the y-axis coordinates of high and low price values
-	yHigh = sc.RegionValueToYPixelCoordinate(vHigh, sc.GraphRegion);
-	yLow = sc.RegionValueToYPixelCoordinate(vLow, sc.GraphRegion);
-	//msg.Format("%d x %d", yHigh, yLow);
-	//sc.AddMessageToLog(msg, 1);
-	// calculate a "tick size" for our study to space things out evenly
-	int tickSize = (int)sc.Round(((yLow - yHigh) / num_levels) / 2);
 	
+	// grab the name of the font used in this chartbook
+	SCString chartFont = sc.ChartTextFont();
+	//sc.AddMessageToLog(chartFont, 1);
+	
+	int fontSize = sc.Input[2].GetInt();
+	HFONT hFont;
+	// Windows GDI font creation
+	// https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createfonta
+	hFont = CreateFont(fontSize,0,0,0,FW_BOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY, DEFAULT_PITCH,TEXT(chartFont));
+    SelectObject(DeviceContext, hFont);
+	
+	// Windows GDI transparency 
+	// https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setbkmode
+	SetBkMode(DeviceContext, TRANSPARENT);
+	
+	int NumberOfDecimals = sc.Input[1].GetInt();
+	int padding = sc.Input[3].GetInt();
 	for (int i=0; i<num_levels; i++) {
 		
 		// calculate coords
-		bidY = sc.RegionValueToYPixelCoordinate(sc.Close[sc.Index], sc.GraphRegion);
-		// spacing for visuals
-		bidY += (i * tickSize);
-		askY = sc.RegionValueToYPixelCoordinate(sc.Close[sc.Index], sc.GraphRegion) - tickSize;
-		// spacing for visuals
-		askY -= (i * tickSize);
+		plotPrice = sc.Bid - (i * sc.TickSize);
+		bidY = sc.RegionValueToYPixelCoordinate(plotPrice, sc.GraphRegion);
+		plotPrice = sc.Ask + (i * sc.TickSize);
+		askY = sc.RegionValueToYPixelCoordinate(plotPrice, sc.GraphRegion);
 		
-		// munge bid side text together
-		msg.Format("%d", *(p_bidAvgLots + i));
+		// formatting of number of decimal places
+		switch (NumberOfDecimals) {
+			case 0:
+				msg.Format("%.0f", *(p_bidAvgLots + i));
+				break;
+			case 1:
+				msg.Format("%.1f", *(p_bidAvgLots + i));
+				break;
+			case 2:
+				msg.Format("%.2f", *(p_bidAvgLots + i));
+				break;				
+		}
+		
 		// print bid side text on DOM
 		::SetTextAlign(DeviceContext, TA_NOUPDATECP);
-		::TextOut(DeviceContext, bidX, bidY, msg, msg.GetLength());
+		::TextOut(DeviceContext, bidX, bidY - padding, msg, msg.GetLength());
 		
 		// munge ask side text together
-		msg.Format("%d", *(p_askAvgLots + i));
+		//msg.Format("%f", *(p_askAvgLots + i));
+		switch (NumberOfDecimals) {
+			case 0:
+				msg.Format("%.0f", *(p_askAvgLots + i));
+				break;
+			case 1:
+				msg.Format("%.1f", *(p_askAvgLots + i));
+				break;
+			case 2:
+				msg.Format("%.2f", *(p_askAvgLots + i));
+				break;				
+		}
 		// print ask side text to DOM
 		::SetTextAlign(DeviceContext, TA_NOUPDATECP);
-		::TextOut(DeviceContext, askX, askY, msg, msg.GetLength());
+		::TextOut(DeviceContext, askX, askY - padding, msg, msg.GetLength());
 
-		//msg.Format("COORDS: %d x %d", bidX, bidY);
-		//sc.AddMessageToLog(msg, 1);
 	}
 
 	return;
