@@ -17,6 +17,9 @@ SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
     // the higher the magic number, the thinner and more VP bars there will be
     SCInputRef i_TickMultiplier = sc.Input[1];
 
+    // option for tick calculations based only on vap
+    SCInputRef useVap = sc.Input[2];
+
     // logging object
     SCString log_message;
 
@@ -28,7 +31,19 @@ SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
         i_StudyRef.SetStudyID(0);
         i_TickMultiplier.Name = "Magic Number Multiplier";
         i_TickMultiplier.SetFloat(1.3);
+        useVap.Name = "Use VAP instead of magic";
+        useVap.SetYesNo(0);
 
+        return;
+    }
+
+    int studyId = i_StudyRef.GetStudyID();
+
+    // VbP Ticks Per Volume Bar is input 32, ID 31
+    int inputIdx = 31;
+
+    if (useVap.GetInt() == 1) {
+        sc.SetChartStudyInputInt(sc.ChartNumber, studyId, inputIdx, sc.VolumeAtPriceMultiplier);
         return;
     }
 
@@ -47,10 +62,11 @@ SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
     //log_message.Format("H=%f, L=%f, Diff=%f, target=%d", vHigh, vLow, vDiff, targetTicksPerBar);
     //sc.AddMessageToLog(log_message, 1);
 
-    int studyId = i_StudyRef.GetStudyID();
+    int prevValue;
+    sc.GetChartStudyInputInt(sc.ChartNumber, studyId, inputIdx, prevValue);
 
-    // VbP Ticks Per Volume Bar is input 32, ID 31
-    int inputIdx = 31;
-
-    sc.SetChartStudyInputInt(sc.ChartNumber, studyId, inputIdx, targetTicksPerBar);
+    if (abs(prevValue - targetTicksPerBar) > (targetTicksPerBar * 0.20)) {
+        sc.SetChartStudyInputInt(sc.ChartNumber, studyId, inputIdx, targetTicksPerBar);
+        sc.RecalculateChart(sc.ChartNumber);
+    }
 }
