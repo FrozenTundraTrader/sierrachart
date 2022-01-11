@@ -111,15 +111,14 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     //sc.AddMessageToLog(msg, 1);
 
     // grab the name of the font used in this chartbook
-    SCString chartFont = sc.ChartTextFont();
-    //sc.AddMessageToLog(chartFont, 1);
     int fontSize = sc.Input[2].GetInt();
+    SCString chartFont = sc.ChartTextFont();
 
-    HFONT hFont;
     // Windows GDI font creation
     // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createfonta
+    HFONT hFont;
     hFont = CreateFont(fontSize,0,0,0,FW_BOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
-                CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY, DEFAULT_PITCH,TEXT(chartFont));
+            CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY, DEFAULT_PITCH,TEXT(chartFont));
     SelectObject(DeviceContext, hFont);
 
     // Windows GDI transparency 
@@ -167,6 +166,9 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
         // print ask side text to DOM
         ::SetTextAlign(DeviceContext, TA_NOUPDATECP);
         ::TextOut(DeviceContext, askX, askY - padding, msg, msg.GetLength());
+
+        // delete font
+        DeleteObject(hFont);
     }
 
     return;
