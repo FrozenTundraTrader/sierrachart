@@ -57,7 +57,7 @@ SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
     vDiff = (vHigh - vLow);
 
     // divide range by magic number to get the desired VbP Ticks Per Bar value
-    int targetTicksPerBar = sc.Round(vDiff / vMultiplier);
+    int targetTicksPerBar = max(sc.Round(vDiff / vMultiplier), 1);
 
     //log_message.Format("H=%f, L=%f, Diff=%f, target=%d", vHigh, vLow, vDiff, targetTicksPerBar);
     //sc.AddMessageToLog(log_message, 1);
