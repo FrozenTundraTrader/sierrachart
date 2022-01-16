@@ -25,8 +25,7 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     int vwapBottomStdDevIndex = 2;
 
     SCFloatArray vwapValueStudyArray;
-    
-    //Get the first (0) subgraph from the study the user has selected.
+    //Get vwap value subgraph from the vwapStudyRef
     if (sc.GetStudyArrayUsingID(vwapStudyRef.GetStudyID(), vwapValueIndex, vwapValueStudyArray) > 0 && vwapValueStudyArray.GetArraySize() > 0) {
         float lastValue = vwapValueStudyArray[sc.UpdateStartIndex];
         SCString log_message;
@@ -35,7 +34,7 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     }
 
     SCFloatArray vwapTopStdDevStudyArray;
-    //Get the first (0) subgraph from the study the user has selected.
+    //Get top std dev subgraph from the vwapStudyRef
     if (sc.GetStudyArrayUsingID(vwapStudyRef.GetStudyID(), vwapTopStdDevIndex, vwapTopStdDevStudyArray) > 0 && vwapTopStdDevStudyArray.GetArraySize() > 0) {
         float lastValue = vwapTopStdDevStudyArray[sc.UpdateStartIndex];
         SCString log_message;
@@ -44,7 +43,7 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     }
 
     SCFloatArray vwapBottomStdDevStudyArray;
-    //Get the first (0) subgraph from the study the user has selected.
+    //Get bottom std dev subgraph from the vwapStudyRef
     if (sc.GetStudyArrayUsingID(vwapStudyRef.GetStudyID(), vwapBottomStdDevIndex, vwapBottomStdDevStudyArray) > 0 && vwapBottomStdDevStudyArray.GetArraySize() > 0) {
         float lastValue = vwapBottomStdDevStudyArray[sc.UpdateStartIndex];
         SCString log_message;
