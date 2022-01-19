@@ -220,7 +220,7 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     SCFloatArray psVWAPStudyArray;
     //Get values subgraph from the psVwapRef
     if (sc.GetStudyArrayUsingID(psVwapRef.GetStudyID(), psVwapRef.GetSubgraphIndex(), psVWAPStudyArray) > 0 && psVWAPStudyArray.GetArraySize() > 0) {
-        double lastValue = psVWAPStudyArray[sc.UpdateStartIndex];
+        double lastValue = psVWAPStudyArray[sc.UpdateStartIndex-1];
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,psVWAP,HotPink", fmtValue.GetChars());
@@ -231,7 +231,7 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     SCFloatArray psDevHighStudyArray;
     //Get values subgraph from the psDevHighRef
     if (sc.GetStudyArrayUsingID(psDevHighRef.GetStudyID(), psDevHighRef.GetSubgraphIndex(), psDevHighStudyArray) > 0 && psDevHighStudyArray.GetArraySize() > 0) {
-        double lastValue = psDevHighStudyArray[sc.UpdateStartIndex];
+        double lastValue = psDevHighStudyArray[sc.UpdateStartIndex-1];
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,psStdD+,LightPink", fmtValue.GetChars());
@@ -242,7 +242,7 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     SCFloatArray psDevLowStudyArray;
     //Get values subgraph from the psDevLowRef
     if (sc.GetStudyArrayUsingID(psDevLowRef.GetStudyID(), psDevLowRef.GetSubgraphIndex(), psDevLowStudyArray) > 0 && psDevLowStudyArray.GetArraySize() > 0) {
-        double lastValue = psDevLowStudyArray[sc.UpdateStartIndex];
+        double lastValue = psDevLowStudyArray[sc.UpdateStartIndex-1];
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,psStdD-,LightPink", fmtValue.GetChars());
