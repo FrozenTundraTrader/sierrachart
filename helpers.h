@@ -64,7 +64,7 @@ class Helper
 
             msgLength = log_message.GetLength() + 2;
 
-            SCString filePath = "C:\\SierraChart\\sc_log.txt";
+            SCString filePath = "C:\\SierraChart\\debug.log";
             sc.OpenFile(filePath, n_ACSIL::FILE_MODE_OPEN_TO_APPEND, fileHandle);
             log_message = log_message + "\r\n";
             sc.WriteFile(fileHandle, log_message, msgLength, &bytesWritten);
