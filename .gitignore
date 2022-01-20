@@ -1,0 +1,12 @@
+*.suo
+*.db
+*.ipch
+*.obj
+*.log
+*.recipe
+*.ilk
+*.tlog
+*.lastbuildstate
+*.iobj
+*.ipdb
+*FileListAbsolute.txt
