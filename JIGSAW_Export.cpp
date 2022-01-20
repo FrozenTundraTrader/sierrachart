@@ -7,11 +7,9 @@ SCDLLName("JIGSAW Export")
     Written by Malykubo and Frozen Tundra in FatCat's Discord Room
 */
 
-const char *colors[147] = { "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "Azure", "Beige", "Bisque", "Black", "BlanchedAlmond", "Blue", "BlueViolet", "Brown", "BurlyWood", "CadetBlue", "Chartreuse", "Chocolate", "Coral", "CornflowerBlue", "Cornsilk", "Crimson", "Cyan", "DarkBlue", "DarkCyan", "DarkGoldenRod", "DarkGray", "DarkGrey", "DarkGreen", "DarkKhaki", "DarkMagenta", "DarkOliveGreen", "Darkorange", "DarkOrchid", "DarkRed", "DarkSalmon", "DarkSeaGreen", "DarkSlateBlue", "DarkSlateGray", "DarkSlateGrey", "DarkTurquoise", "DarkViolet", "DeepPink", "DeepSkyBlue", "DimGray", "DimGrey", "DodgerBlue", "FireBrick", "FloralWhite", "ForestGreen", "Fuchsia", "Gainsboro", "GhostWhite", "Gold", "GoldenRod", "Gray", "Grey", "Green", "GreenYellow", "HoneyDew", "HotPink", "IndianRed", "Indigo", "Ivory", "Khaki", "Lavender", "LavenderBlush", "LawnGreen", "LemonChiffon", "LightBlue", "LightCoral", "LightCyan", "LightGoldenRodYellow", "LightGray", "LightGrey", "LightGreen", "LightPink", "LightSalmon", "LightSeaGreen", "LightSkyBlue", "LightSlateGray", "LightSlateGrey", "LightSteelBlue", "LightYellow", "Lime", "LimeGreen", "Linen", "Magenta", "Maroon", "MediumAquaMarine", "MediumBlue", "MediumOrchid", "MediumPurple", "MediumSeaGreen", "MediumSlateBlue", "MediumSpringGreen", "MediumTurquoise", "MediumVioletRed", "MidnightBlue", "MintCream", "MistyRose", "Moccasin", "NavajoWhite", "Navy", "OldLace", "Olive", "OliveDrab", "Orange", "OrangeRed", "Orchid", "PaleGoldenRod", "PaleGreen", "PaleTurquoise", "PaleVioletRed", "PapayaWhip", "PeachPuff", "Peru", "Pink", "Plum", "PowderBlue", "Purple", "Red", "RosyBrown", "RoyalBlue", "SaddleBrown", "Salmon", "SandyBrown", "SeaGreen", "SeaShell", "Sienna", "Silver", "SkyBlue", "SlateBlue", "SlateGray", "SlateGrey", "Snow", "SpringGreen", "SteelBlue", "Tan", "Teal", "Thistle", "Tomato", "Turquoise", "Violet", "Wheat", "White", "WhiteSmoke", "Yellow", "YellowGreen" };
 
 /*
- *
- * values to export:
+ * Pardon's values to export:
  *
  * ovnH - DarkSeaGreen
  * ovnL - IndianRed
@@ -35,17 +33,28 @@ const char *colors[147] = { "AliceBlue", "AntiqueWhite", "Aqua", "Aquamarine", "
  *  174'16,uPL,DarkGray
  *  154'21,mP,LightSalmon
  */
-void logf(SCStudyInterfaceRef sc, SCString log_message) {
+// pass in sc obj and string to log to file
+void logf(SCStudyInterfaceRef sc, SCString log_message, bool restartFile) {
     unsigned int bytesWritten = 0;
     int fileHandle;
     int msgLength = 0;
 
+    // add 2 bytes to the end for the newline and carriage return characters
     msgLength = log_message.GetLength() + 2;
     log_message = log_message + "\r\n";
 
+    // file handle writing enums (scconstants.h)
+    // FILE_MODE_OPEN_TO_REWRITE_FROM_START
+    // FILE_MODE_OPEN_TO_APPEND
     SCString filePath;
     filePath.Format("C:\\SierraChart\\jigsaw_%s.txt", sc.Symbol.GetChars());
-    sc.OpenFile(filePath, n_ACSIL::FILE_MODE_OPEN_TO_APPEND, fileHandle);
+    if (restartFile) {
+        sc.OpenFile(filePath, n_ACSIL::FILE_MODE_OPEN_TO_REWRITE_FROM_START, fileHandle);
+    }
+    else {
+        // continue appending to file
+        sc.OpenFile(filePath, n_ACSIL::FILE_MODE_OPEN_TO_APPEND, fileHandle);
+    }
     sc.WriteFile(fileHandle, log_message, msgLength, &bytesWritten);
     sc.CloseFile(fileHandle);
 }
@@ -72,8 +81,6 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     // Configuration
     if (sc.SetDefaults)
     {
-        logf(sc, "scsf_JigsawExport: SetDefaults");
-
         sc.GraphRegion = 0;
 
         timeInterval.Name = "Interval for recalculation in sec";
@@ -121,7 +128,7 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     // Recalculate every timeInterval sec
     SCDateTime& lastDateTime = sc.GetPersistentSCDateTime(0);
     if (sc.LatestDateTimeForLastBar.GetTimeInSeconds() < lastDateTime.GetTimeInSeconds() + timeInterval.GetInt()) {
-        //return;
+        return;
     }
     sc.SetPersistentSCDateTime(0, sc.LatestDateTimeForLastBar);
 
@@ -136,8 +143,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,dV,Cyan", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, true);
     }
 
     SCFloatArray vwapTopStdDevStudyArray;
@@ -148,8 +155,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         //log_message.Format("TOP STD DEV: %f", lastValue);
         log_message.Format("%s,dV+,MediumTurquoise", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray vwapBottomStdDevStudyArray;
@@ -160,8 +167,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         //log_message.Format("BOTTOM STD DEV: %f", lastValue);
         log_message.Format("%s,dV-,MediumTurquoise", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray ovnHStudyArray;
@@ -171,8 +178,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,ovnH,DarkSeaGreen", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray ovnLStudyArray;
@@ -182,8 +189,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,ovnL,IndianRed", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray pdVwapStudyArray;
@@ -193,8 +200,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,pdVWAP,ForestGreen", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray pdDevHighStudyArray;
@@ -204,8 +211,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,pdStdD+,SeaGreen", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray pdDevLowStudyArray;
@@ -215,41 +222,41 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,pdStdD-,SeaGreen", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray psVWAPStudyArray;
     //Get values subgraph from the psVwapRef
     if (sc.GetStudyArrayUsingID(psVwapRef.GetStudyID(), psVwapRef.GetSubgraphIndex(), psVWAPStudyArray) > 0 && psVWAPStudyArray.GetArraySize() > 0) {
-        double lastValue = psVWAPStudyArray[sc.UpdateStartIndex-1];
+        double lastValue = psVWAPStudyArray[sc.Index];
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,psVWAP,HotPink", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray psDevHighStudyArray;
     //Get values subgraph from the psDevHighRef
     if (sc.GetStudyArrayUsingID(psDevHighRef.GetStudyID(), psDevHighRef.GetSubgraphIndex(), psDevHighStudyArray) > 0 && psDevHighStudyArray.GetArraySize() > 0) {
-        double lastValue = psDevHighStudyArray[sc.UpdateStartIndex-1];
+        double lastValue = psDevHighStudyArray[sc.Index];
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,psStdD+,LightPink", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray psDevLowStudyArray;
     //Get values subgraph from the psDevLowRef
     if (sc.GetStudyArrayUsingID(psDevLowRef.GetStudyID(), psDevLowRef.GetSubgraphIndex(), psDevLowStudyArray) > 0 && psDevLowStudyArray.GetArraySize() > 0) {
-        double lastValue = psDevLowStudyArray[sc.UpdateStartIndex-1];
+        double lastValue = psDevLowStudyArray[sc.Index];
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,psStdD-,LightPink", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray dailyEqStudyArray;
@@ -259,8 +266,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,dEQ,FloralWhite", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray weeklyEqStudyArray;
@@ -270,8 +277,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,wEQ,Cornsilk", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
     SCFloatArray monthlyEqStudyArray;
@@ -281,8 +288,9 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
         lastValue = sc.RoundToTickSize((float)lastValue,sc.TickSize);
         SCString fmtValue = sc.FormatGraphValue(lastValue, sc.BaseGraphValueFormat);
         log_message.Format("%s,mEQ,LemonChiffon", fmtValue.GetChars());
-        help.dump(log_message);
-        logf(sc, log_message);
+        //help.dump(log_message);
+        logf(sc, log_message, false);
     }
 
 }
+
