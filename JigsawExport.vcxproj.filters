@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="JIGSAW_Export.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="helpers.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="scripts">
+      <UniqueIdentifier>{9c029680-bb3a-49cb-b7bd-7bacde9a8785}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="sc-udp-dll-ctrl.ps1">
+      <Filter>scripts</Filter>
+    </None>
+  </ItemGroup>
+</Project>

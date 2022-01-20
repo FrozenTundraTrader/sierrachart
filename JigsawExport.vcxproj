@@ -16,6 +16,12 @@
   <ItemGroup>
     <ClCompile Include="JIGSAW_Export.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="sc-udp-dll-ctrl.ps1">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -75,6 +81,26 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
     </Link>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+    <PreLinkEvent>
+      <Message>
+      </Message>
+    </PreLinkEvent>
+    <PostBuildEvent>
+      <Command>powershell.exe -noprofile -executionpolicy bypass -command .\sc-udp-dll-ctrl.ps1 -UnloadAllDLLs:$false</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>### PostBuild: UNLOCKING SIERRACHART DLLs</Message>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>powershell.exe -noprofile -executionpolicy bypass -command .\sc-udp-dll-ctrl.ps1 -UnloadAllDLLs:$true</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>### PreBuild: UNLOADING SIERRACHART DLLs</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -96,6 +122,26 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
     </Link>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+    <PreLinkEvent>
+      <Message>
+      </Message>
+    </PreLinkEvent>
+    <PostBuildEvent>
+      <Command>powershell.exe -noprofile -executionpolicy bypass -command .\sc-udp-dll-ctrl.ps1 -UnloadAllDLLs:$false</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>### PostBuild: UNLOCKING SIERRACHART DLLs</Message>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>powershell.exe -noprofile -executionpolicy bypass -command .\sc-udp-dll-ctrl.ps1 -UnloadAllDLLs:$true</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>### PreBuild: UNLOADING SIERRACHART DLLs</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
