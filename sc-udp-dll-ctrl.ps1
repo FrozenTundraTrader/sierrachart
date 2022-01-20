@@ -99,16 +99,36 @@ if ($PSVersionTable.PSVersion.Major -lt 5)
     Die "PS Version not compatible -- At least version 5 is required!" -immediateNoCollect $true
 }
 
+$MyName = $MyInvocation.MyCommand.Name
+
+
+
+# Some explanatory text. Maybe removed later ...
+if ($UnloadAllDLLs)
+{
+    Write-Host "### ********************************************************************************"
+    Write-Host "### $($MyName):"
+    Write-Host "###"
+    Write-Host "### Using SierraChart UDP port: $($SCPortUDP)"
+    Write-Host "###"
+    Write-Host "### If not already done, you have to define/activate the port first -- use:"
+    Write-Host "###"
+    Write-Host "###     <Global Settings | Sierra Chart Server Settings | UDP Port>"
+    Write-Host "###"
+    Write-Host "### ********************************************************************************"
+}
+
+
 
 if ($UnloadAllDLLs)
 {
-    Write-Host "### Unloading DLLs ... (port=$($SCPortUDP))"
+    Write-Host "### Unloading DLLs ..."
     Send-UdpDatagram -EndPoint $IpAddress -Port $SCPortUDP -Message "RELEASE_ALL_DLLS" 
     Write-Host "(ok)"
 }
 else
 {
-    Write-Host "### Allow loading of DLLs ... (port=$($SCPortUDP))"
+    Write-Host "### Allow loading of DLLs ..."
     Write-Host "### ********************************************************************************"
     Write-Host "### To reload chart(s) in SierraChart:"
     Write-Host "###"
