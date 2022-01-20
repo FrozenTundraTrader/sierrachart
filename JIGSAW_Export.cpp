@@ -72,6 +72,8 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     // Configuration
     if (sc.SetDefaults)
     {
+        logf(sc, "scsf_JigsawExport: SetDefaults");
+
         sc.GraphRegion = 0;
 
         timeInterval.Name = "Interval for recalculation in sec";
@@ -284,4 +286,3 @@ SCSFExport scsf_JigsawExport(SCStudyInterfaceRef sc)
     }
 
 }
-

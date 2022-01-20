@@ -35,7 +35,7 @@ class Helper
                 log_message.Format("'%s'", ksptr.GetChars());
             }
             else {
-                log_message.Format("Unknown type");
+                log_message.Format("Unknown type: \"%s\"", typenm);
             }
             sc.AddMessageToLog(log_message,1);
         }
