@@ -29,13 +29,18 @@ class Helper
             }
             else if (typenm == "8SCString") {
                 // SCString obj
-                SCString * sptr = (SCString*)&t;
+                SCString* sptr = (SCString*)&t;
                 SCString ksptr = *sptr;
                 //log_message.Format("SCString(%s)='%s'", strtype, ksptr.GetChars());
                 log_message.Format("'%s'", ksptr.GetChars());
             }
+            else if (typenm == "class SCString") {
+                // SCString obj
+                SCString &st = (SCString&)t;
+                log_message.Format("'%s'", st.GetChars());
+            }
             else {
-                log_message.Format("Unknown type: \"%s\"", typenm);
+                log_message.Format("Unknown type: \"%s\"", strtype);
             }
             sc.AddMessageToLog(log_message,1);
         }
