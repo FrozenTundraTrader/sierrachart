@@ -8,6 +8,8 @@ SCDLLName("Frozen Tundra - Auto Volume by Price")
 
 SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
 {
+    // helper object
+    SCString log_message;
 
     // which study to reference
     SCInputRef i_StudyRef = sc.Input[0];
@@ -17,11 +19,7 @@ SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
     // the higher the magic number, the thinner and more VP bars there will be
     SCInputRef i_TickMultiplier = sc.Input[1];
 
-    // option for tick calculations based only on vap
     SCInputRef useVap = sc.Input[2];
-
-    // logging object
-    SCString log_message;
 
     // Configuration
     if (sc.SetDefaults)
@@ -59,13 +57,15 @@ SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
     // divide range by magic number to get the desired VbP Ticks Per Bar value
     int targetTicksPerBar = max(sc.Round(vDiff / vMultiplier), 1);
 
-    //log_message.Format("H=%f, L=%f, Diff=%f, target=%d", vHigh, vLow, vDiff, targetTicksPerBar);
-    //sc.AddMessageToLog(log_message, 1);
-
     int prevValue;
     sc.GetChartStudyInputInt(sc.ChartNumber, studyId, inputIdx, prevValue);
 
+    // require at least a 20% change before updating the VbP study
     if (abs(prevValue - targetTicksPerBar) > (targetTicksPerBar * 0.20)) {
+        // don't allow a Ticks Per Bar value of less than 1
+        if (targetTicksPerBar < 1) {
+            targetTicksPerBar = 1;
+        }
         sc.SetChartStudyInputInt(sc.ChartNumber, studyId, inputIdx, targetTicksPerBar);
         sc.RecalculateChart(sc.ChartNumber);
     }
