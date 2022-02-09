@@ -1,18 +1,27 @@
 <#
 .SYNOPSIS
     Load/unload all SierraChart Custom Study DLLs using UDP commands.
+
 .DESCRIPTION
     Load/unload all SierraChart Custom Study DLLs using UDP commands.
     See https://www.sierrachart.com/index.php?page=doc/UDPAPI.html
 
 .NOTES
-    -
+    Authors: cxxxxx, Frozen Tundra, malykubo
 #>
 
+
 Param(
+    # Hostname, Default = localhost
+	[parameter(Mandatory=$false)]
+	[string]$Targethost = "127.0.0.1",
     # Load or unload?
 	[parameter(Mandatory=$true)]
-	[switch]$UnloadAllDLLs = $true
+	[switch]$UnloadAllDLLs = $true,
+    # Disable verbose help messages
+	[parameter(Mandatory=$false)]
+	[switch]$DisableHelp = $false
+
 )
 
 
@@ -23,8 +32,8 @@ Param(
 # Halt on errors
 $ErrorActionPreference = "Stop"
 
-# Destination IP address -> localhost only for now
-$IpAddress = "127.0.0.1"
+# Destination IP address / hostname
+$IpAddress = $Targethost
 # Destination SierraChart port, as defined in
 # Global Settings -> Sierra Chart Server Settings -> "UDP Port"
 $SCPortUDP = 4242
@@ -104,18 +113,21 @@ $MyName = $MyInvocation.MyCommand.Name
 
 
 # Some explanatory text. Maybe removed later ...
-if ($UnloadAllDLLs)
+if (!$DisableHelp)
 {
-    Write-Host "### ********************************************************************************"
-    Write-Host "### $($MyName):"
-    Write-Host "###"
-    Write-Host "### Using SierraChart UDP port: $($SCPortUDP)"
-    Write-Host "###"
-    Write-Host "### If not already done, you have to define/activate the port first -- use:"
-    Write-Host "###"
-    Write-Host "###     <Global Settings | Sierra Chart Server Settings | UDP Port>"
-    Write-Host "###"
-    Write-Host "### ********************************************************************************"
+    if ($UnloadAllDLLs)
+    {
+        Write-Host "### ********************************************************************************"
+        Write-Host "### $($MyName):"
+        Write-Host "###"
+        Write-Host "### Using SierraChart UDP port: $($SCPortUDP)"
+        Write-Host "###"
+        Write-Host "### If not already done, you have to define/activate the port first -- use:"
+        Write-Host "###"
+        Write-Host "###     <Global Settings | Sierra Chart Server Settings | UDP Port>"
+        Write-Host "###"
+        Write-Host "### ********************************************************************************"
+    }
 }
 
 
@@ -128,16 +140,20 @@ if ($UnloadAllDLLs)
 }
 else
 {
-    Write-Host "### Allow loading of DLLs ..."
-    Write-Host "### ********************************************************************************"
-    Write-Host "### To reload chart(s) in SierraChart:"
-    Write-Host "###"
-    Write-Host "###     Choose <Chart | Recalculate> [CTRL-Insert]"
-    Write-Host "###"
-    Write-Host "### If defaults (sc.SetDefaults) or params/subgraphs have been changed:"
-    Write-Host "###"
-    Write-Host "###     Remove and add the study!"
-    Write-Host "### ********************************************************************************"
+    if (!$DisableHelp)
+    {
+        Write-Host "### Allow loading of DLLs ..."
+        Write-Host "### ********************************************************************************"
+        Write-Host "### To reload chart(s) in SierraChart:"
+        Write-Host "###"
+        Write-Host "###     Choose <Chart | Recalculate> [CTRL-Insert]"
+        Write-Host "###"
+        Write-Host "### If defaults (sc.SetDefaults) or params/subgraphs have been changed:"
+        Write-Host "###"
+        Write-Host "###     Remove and add the study!"
+        Write-Host "### ********************************************************************************"
+    }
+
     Send-UdpDatagram -EndPoint $IpAddress -Port $SCPortUDP -Message "ALLOW_LOAD_ALL_DLLS" 
     Write-Host "(ok)"
 }
