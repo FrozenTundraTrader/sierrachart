@@ -1,3 +1,4 @@
+#include "helpers.h"
 #include "sierrachart.h"
 #include <string>
 SCDLLName("Frozen Tundra - Auto Risk Reward Tool")
@@ -13,13 +14,14 @@ SCSFExport scsf_AutoRiskReward(SCStudyInterfaceRef sc)
     SCString msg;
 
     // helper class
-    //Helper help(sc);
+    Helper help(sc);
 
     SCInputRef i_FontSize = sc.Input[0];
     SCInputRef i_LineSize = sc.Input[1];
     SCInputRef i_MarkerSize = sc.Input[2];
     SCInputRef i_UseBold = sc.Input[3];
     SCInputRef i_TransparentBg = sc.Input[4];
+    SCInputRef i_RemoveLatestDrawing = sc.Input[5];
 
     // Set configuration variables
     if (sc.SetDefaults)
@@ -44,7 +46,22 @@ SCSFExport scsf_AutoRiskReward(SCStudyInterfaceRef sc)
 
         i_TransparentBg.Name = "Transparent Background?";
         i_TransparentBg.SetYesNo(0);
+
+        i_RemoveLatestDrawing.Name = "Remove Drawing After Position Closed?";
+        i_RemoveLatestDrawing.SetYesNo(0);
         return;
+    }
+
+    // if Remove Latest Drawing setting is on, remove the latest drawing if position closed
+    int &LineNumber = sc.GetPersistentInt(1);
+    // grab position data for this chart
+    s_SCPositionData PositionData;
+    sc.GetTradePosition(PositionData);
+    // grab curr position size
+    int CurrentPositionSize = PositionData.PositionQuantity;
+    // if size is 0 (closed position) and we want to discard drawings, delete drawing
+    if (i_RemoveLatestDrawing.GetInt() == 1 && CurrentPositionSize == 0) {
+        sc.DeleteACSChartDrawing(sc.ChartNumber, TOOL_DELETE_CHARTDRAWING, LineNumber);
     }
 
 
@@ -89,7 +106,9 @@ SCSFExport scsf_AutoRiskReward(SCStudyInterfaceRef sc)
     int TargetOrderId = EntryOrder.TargetChildInternalOrderID;
 
     // bomb out if we have had a manual fill thats not OCO
-    if (EntryOrderId <= 0 || EntryOrderId <= 0 || EntryOrderId <= 0) return;
+    if (EntryOrderId <= 0 || EntryOrderId <= 0 || EntryOrderId <= 0) {
+        return;
+    }
 
     msg.Format("EntryOrderId=%d, StopOrderId=%d, TgtOrderId=%d", EntryOrderId, StopOrderId, TargetOrderId);
     //help.dump(msg);
@@ -124,8 +143,8 @@ SCSFExport scsf_AutoRiskReward(SCStudyInterfaceRef sc)
     s_UseTool Tool;
 
     Tool.ChartNumber = sc.ChartNumber;
-    int &LineNumber = sc.GetPersistentInt(1);
     if(LineNumber != 0) Tool.LineNumber = LineNumber;
+
     Tool.Region = 0;
     Tool.AddMethod = UTAM_ADD_OR_ADJUST;
 
