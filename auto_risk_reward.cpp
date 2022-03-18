@@ -1,4 +1,3 @@
-#include "helpers.h"
 #include "sierrachart.h"
 #include <string>
 SCDLLName("Frozen Tundra - Auto Risk Reward Tool")
@@ -14,7 +13,7 @@ SCSFExport scsf_AutoRiskReward(SCStudyInterfaceRef sc)
     SCString msg;
 
     // helper class
-    Helper help(sc);
+    //Helper help(sc);
 
     SCInputRef i_FontSize = sc.Input[0];
     SCInputRef i_LineSize = sc.Input[1];
@@ -193,4 +192,4 @@ SCSFExport scsf_AutoRiskReward(SCStudyInterfaceRef sc)
 
     sc.UseTool(Tool);  // here we make the function call to add the reward risk tool
     LineNumber = Tool.LineNumber; // remember line number which has been automatically set
-}
+}   
