@@ -1,5 +1,6 @@
 #include "sierrachart.h"
 #include <string>
+#include <sstream>
 SCDLLName("Frozen Tundra - Google Sheets Levels Importer")
 
 /*
@@ -18,25 +19,6 @@ SCDLLName("Frozen Tundra - Google Sheets Levels Importer")
         (int)    Text Alignment
 */
 
-// write to file
-void logf(SCStudyInterfaceRef sc, SCString LogMessage) {
-    unsigned int BytesWritten = 0;
-    int FileHandle;
-    int MsgLength = 0;
-
-    // add 2 bytes to the end for the newline and carriage return characters
-    MsgLength = LogMessage.GetLength() + 2;
-    LogMessage = LogMessage + "\r\n";
-
-    SCString TempFilePath = sc.Input[3].GetPathAndFileName();
-    SCString FilePath;
-    FilePath.Format("%s%s.csv", TempFilePath.GetChars(), sc.Symbol.GetChars());
-
-    sc.OpenFile(FilePath, n_ACSIL::FILE_MODE_OPEN_TO_REWRITE_FROM_START, FileHandle);
-    sc.WriteFile(FileHandle, LogMessage, MsgLength, &BytesWritten);
-    sc.CloseFile(FileHandle);
-}
-
 SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
 {
     // logging object
@@ -45,7 +27,6 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
     SCInputRef i_FilePath = sc.Input[0];
     SCInputRef i_Transparency = sc.Input[1];
     SCInputRef i_ShowPrice = sc.Input[2];
-    SCInputRef i_TempFilePath = sc.Input[3];
 
     // Set configuration variables
     if (sc.SetDefaults)
@@ -68,8 +49,6 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
         i_ShowPrice.Name = "Show Price";
         i_ShowPrice.SetYesNo(0);
 
-        i_TempFilePath.Name = "Temp File Path";
-        i_TempFilePath.SetPathAndFileName("C:\\SierraChart\\");
         return;
     }
 
@@ -118,14 +97,10 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
     // reset state for next run
     RequestState = REQUEST_NOT_SENT;
 
-    // we need to store the Google sheets file locally, temporarily
-    SCString OutputFilePath;
-    OutputFilePath.Format("%s%s.csv", i_TempFilePath.GetPathAndFileName(), sc.Symbol.GetChars());
-    logf(sc, sc.HTTPResponse);
-
-    // open a file stream and read from our temp file we downloaded from Google Sheets
-    std::ifstream input(OutputFilePath);
+    // we'll split each CSV row up into tokens
     std::vector<char*> tokens;
+    // open an input stream and read from our Google Sheet
+    std::istringstream input(sc.HTTPResponse.GetChars());
     int LineNumber = 1;
     for (std::string line; getline(input,line);) {
         msg.Format("%s", line.c_str());
@@ -227,7 +202,6 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
             Tool.TransparencyLevel = i_Transparency.GetInt();
             Tool.Text = note;
             Tool.LineNumber = LineNumber;
-            //Tool.ShowPrice = 1;
             sc.UseTool(Tool);
 
             // increment field counter
