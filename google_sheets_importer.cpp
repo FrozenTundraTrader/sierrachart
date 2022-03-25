@@ -81,7 +81,7 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
         i_DomFontSize.SetInt(18);
 
         i_xOffset.Name = " > DOM Label X-coord Offset";
-        i_xOffset.SetInt(-25);
+        i_xOffset.SetInt(-70);
 
         i_yOffset.Name = " > DOM Label Y-coord Offset";
         i_yOffset.SetInt(-10);
@@ -271,12 +271,21 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
         LineNumber++;
 
         // if we want to show on DOM, we need to add to our list
-        if (i_ShowLabelOnDom.GetInt() == 1 && price > 0 && price2 <= 0 && note != "") {
+        if (i_ShowLabelOnDom.GetInt() == 1 && price > 0 && note != "") {
             PriceLabel TmpPriceLabel = { price, note, Tool.Color };
+            if (price2 > 0) {
+                TmpPriceLabel.Label.Format("Rect1:%s", note.GetChars());
+            }
             //PriceLabels.insert(PriceLabels.end(), TmpPriceLabel);
             p_PriceLabels->insert(p_PriceLabels->end(), TmpPriceLabel);
 //msg.Format("Adding %f => %s", price, note.GetChars());
 //sc.AddMessageToLog(msg, 1);
+
+            if (price2 > 0) {
+                TmpPriceLabel = { price2, note, Tool.Color };
+                TmpPriceLabel.Label.Format("Rect2:%s", note.GetChars());
+                p_PriceLabels->insert(p_PriceLabels->end(), TmpPriceLabel);
+            }
         }
     }
 
@@ -300,7 +309,10 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
 //    }
 //    LastWrittenSec = CurrTime.GetTimeInSeconds();
 
+    int xOffset = sc.Input[7].GetInt();
+    int yOffset = sc.Input[8].GetInt();
     int x = sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_GENERAL_PURPOSE_1);
+    x += xOffset;
     int y;
     SCString msg;
     std::vector<PriceLabel> *p_PriceLabels = (std::vector<PriceLabel>*)sc.GetPersistentPointer(0);
@@ -335,8 +347,6 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setbkmode
     //SetBkMode(DeviceContext, TRANSPARENT);
     //int NumberOfDecimals = sc.Input[1].GetInt();
-    int xOffset = sc.Input[7].GetInt();
-    int yOffset = sc.Input[8].GetInt();
     int NumPriceLabels = p_PriceLabels->size();
 //log.Format("%d PriceLabels found", NumPriceLabels);
 //sc.AddMessageToLog(log,1);
@@ -350,7 +360,6 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
         ::SetTextColor(DeviceContext, LabelColor);
 
         // calculate coords
-        x += xOffset;
         y = sc.RegionValueToYPixelCoordinate(plotPrice, sc.GraphRegion);
         y += yOffset;
         ::SetTextAlign(DeviceContext, TA_NOUPDATECP);
