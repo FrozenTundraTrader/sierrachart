@@ -1,6 +1,7 @@
 #include "sierrachart.h"
 #include <string>
 #include <sstream>
+#include <vector>
 SCDLLName("Frozen Tundra - Google Sheets Levels Importer")
 
 /*
@@ -19,6 +20,14 @@ SCDLLName("Frozen Tundra - Google Sheets Levels Importer")
         (int)    Text Alignment
 */
 
+struct PriceLabel {
+    float Price;
+    SCString Label;
+    COLORREF LabelColor;
+};
+
+void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc);
+
 SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
 {
     // logging object
@@ -26,7 +35,17 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
 
     SCInputRef i_FilePath = sc.Input[0];
     SCInputRef i_Transparency = sc.Input[1];
-    SCInputRef i_ShowPrice = sc.Input[2];
+
+    // chart related settings
+    SCInputRef i_DrawLinesOnChart = sc.Input[3];
+    SCInputRef i_ShowPriceOnChart = sc.Input[4];
+
+    // (separate) DOM related settings
+    SCInputRef i_ShowLabelOnDom = sc.Input[5];
+    SCInputRef i_DomFontSize = sc.Input[6];
+    SCInputRef i_xOffset = sc.Input[7];
+    SCInputRef i_yOffset = sc.Input[8];
+    SCInputRef i_LabelBgColor = sc.Input[9];
 
     // Set configuration variables
     if (sc.SetDefaults)
@@ -46,24 +65,60 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
         i_Transparency.Name = "Transparency Level";
         i_Transparency.SetInt(70);
 
-        i_ShowPrice.Name = "Show Price";
-        i_ShowPrice.SetYesNo(0);
+        // Chart specific settings
+        i_DrawLinesOnChart.Name = "Draw Lines On Chart?";
+        i_DrawLinesOnChart.SetYesNo(1);
+
+        i_ShowPriceOnChart.Name = "> Show Price By Chart Label?";
+        i_ShowPriceOnChart.SetYesNo(0);
+
+
+        // DOM specific settings
+        i_ShowLabelOnDom.Name = "Show Label On DOM?";
+        i_ShowLabelOnDom.SetYesNo(0);
+
+        i_DomFontSize.Name = " > DOM Font Size";
+        i_DomFontSize.SetInt(18);
+
+        i_xOffset.Name = " > DOM Label X-coord Offset";
+        i_xOffset.SetInt(-25);
+
+        i_yOffset.Name = " > DOM Label Y-coord Offset";
+        i_yOffset.SetInt(-10);
+
+        i_LabelBgColor.Name = " > DOM Label Background Color";
+        i_LabelBgColor.SetColor(255,255,255);
 
         return;
     }
 
+
+    // hold our HTTP Response
+    SCString &HttpResponseContent = sc.GetPersistentSCString(4);
+
     SCString Url = i_FilePath.GetString();
     // add specific code to output as CSV attachment from Google Sheets
     Url.Format("%s/gviz/tq?tqx=out:csv", Url.GetChars());
+
+    // create pointer to struct array
+    std::vector<PriceLabel>* p_PriceLabels = reinterpret_cast<std::vector<PriceLabel>*>(sc.GetPersistentPointer(0));
+    if (p_PriceLabels == NULL) {
+        // array of structs to hold our CSV labels for each price
+        p_PriceLabels = new std::vector<PriceLabel>;
+        sc.SetPersistentPointer(0, p_PriceLabels);
+    }
+    else {
+        p_PriceLabels->clear();
+    }
 
     // HTTP request start
     // status codes
     enum {REQUEST_NOT_SENT = 0,  REQUEST_SENT, REQUEST_RECEIVED};
     // latest request status
     int& RequestState = sc.GetPersistentInt(1);
+
     // Only run on full recalc
-    if (sc.Index == 0)
-    {
+    if (sc.Index == 0) {
         if (RequestState == REQUEST_NOT_SENT)
         {
             // Make a request for a text file on the server. When the request is complete and all of the data
@@ -80,6 +135,7 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
             else
                 RequestState = REQUEST_SENT;
         }
+
     }
 
     if (RequestState == REQUEST_SENT && sc.HTTPResponse != "")
@@ -87,6 +143,7 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
         RequestState = REQUEST_RECEIVED;
         // Display the response from the Web server in the Message Log
         //sc.AddMessageToLog(sc.HTTPResponse, 1);
+        HttpResponseContent = sc.HTTPResponse;
     }
     else if (RequestState == REQUEST_SENT && sc.HTTPResponse == "")
     {
@@ -100,7 +157,7 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
     // we'll split each CSV row up into tokens
     std::vector<char*> tokens;
     // open an input stream and read from our Google Sheet
-    std::istringstream input(sc.HTTPResponse.GetChars());
+    std::istringstream input(HttpResponseContent.GetChars());
     int LineNumber = 1;
     for (std::string line; getline(input,line);) {
         msg.Format("%s", line.c_str());
@@ -194,15 +251,17 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
             }
 
             // draw line
-            Tool.ChartNumber = sc.ChartNumber;
-            Tool.BeginDateTime = sc.BaseDateTimeIn[0];
-            Tool.EndDateTime = sc.BaseDateTimeIn[sc.ArraySize-1];
-            Tool.AddMethod = UTAM_ADD_OR_ADJUST;
-            Tool.ShowPrice = i_ShowPrice.GetInt();
-            Tool.TransparencyLevel = i_Transparency.GetInt();
-            Tool.Text = note;
-            Tool.LineNumber = LineNumber;
-            sc.UseTool(Tool);
+            if (i_DrawLinesOnChart.GetInt() == 1) {
+                Tool.ChartNumber = sc.ChartNumber;
+                Tool.BeginDateTime = sc.BaseDateTimeIn[0];
+                Tool.EndDateTime = sc.BaseDateTimeIn[sc.ArraySize-1];
+                Tool.AddMethod = UTAM_ADD_OR_ADJUST;
+                Tool.ShowPrice = i_ShowPriceOnChart.GetInt();
+                Tool.TransparencyLevel = i_Transparency.GetInt();
+                Tool.Text = note;
+                Tool.LineNumber = LineNumber;
+                sc.UseTool(Tool);
+            }
 
             // increment field counter
             idx++;
@@ -210,5 +269,98 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
 
         // increment row counter
         LineNumber++;
+
+        // if we want to show on DOM, we need to add to our list
+        if (i_ShowLabelOnDom.GetInt() == 1 && price > 0 && price2 <= 0 && note != "") {
+            PriceLabel TmpPriceLabel = { price, note, Tool.Color };
+            //PriceLabels.insert(PriceLabels.end(), TmpPriceLabel);
+            p_PriceLabels->insert(p_PriceLabels->end(), TmpPriceLabel);
+//msg.Format("Adding %f => %s", price, note.GetChars());
+//sc.AddMessageToLog(msg, 1);
+        }
     }
+
+    sc.p_GDIFunction = DrawToChart;
+}
+
+void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
+{
+
+    SCString log;
+//    // keep track of last write time
+//    SCDateTime CurrTime = sc.CurrentSystemDateTime;
+//    int UpdateIntervalSeconds = 10;
+//    int &LastWrittenSec = sc.GetPersistentInt(5);
+//log.Format("LastWrittenSec=%d vs %d, return=%d", LastWrittenSec, CurrTime.GetTimeInSeconds(), (LastWrittenSec + UpdateIntervalSeconds > CurrTime.GetTimeInSeconds()));
+//sc.AddMessageToLog(log, 1);
+//    if (LastWrittenSec + UpdateIntervalSeconds > CurrTime.GetTimeInSeconds()) {
+//log.Format("Should be returning here...");
+//sc.AddMessageToLog(log, 1);
+//        return;
+//    }
+//    LastWrittenSec = CurrTime.GetTimeInSeconds();
+
+    int x = sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_GENERAL_PURPOSE_1);
+    int y;
+    SCString msg;
+    std::vector<PriceLabel> *p_PriceLabels = (std::vector<PriceLabel>*)sc.GetPersistentPointer(0);
+
+    float plotPrice = 0;
+
+    // grab the name of the font used in this chartbook
+    int fontSize = sc.Input[6].GetInt();
+    //int fontSize = 14;
+    SCString chartFont = sc.ChartTextFont();
+
+    // Windows GDI font creation
+    // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createfonta
+    HFONT hFont;
+    hFont = CreateFont(fontSize,0,0,0,FW_BOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+            CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY, DEFAULT_PITCH,TEXT(chartFont));
+
+    // https://docs.microsoft.com/en-us/windows/win32/gdi/colorref
+    //const COLORREF bg = 0x00C0C0C0;
+    const COLORREF fg = 0x00000000;
+    COLORREF bg = sc.Input[9].GetColor();
+    // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-settextcolor
+    ::SetTextColor(DeviceContext, fg);
+    ::SetBkColor(DeviceContext, bg);
+
+    // Windows GDI transparency 
+    // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setbkmode
+    //SetBkMode(DeviceContext, OPAQUE);
+    SelectObject(DeviceContext, hFont);
+
+    // Windows GDI transparency 
+    // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-setbkmode
+    //SetBkMode(DeviceContext, TRANSPARENT);
+    //int NumberOfDecimals = sc.Input[1].GetInt();
+    int xOffset = sc.Input[7].GetInt();
+    int yOffset = sc.Input[8].GetInt();
+    int NumPriceLabels = p_PriceLabels->size();
+//log.Format("%d PriceLabels found", NumPriceLabels);
+//sc.AddMessageToLog(log,1);
+    for (int i=0; i<NumPriceLabels; i++) {
+
+        // fetch the PriceLabel we want to draw
+        PriceLabel TmpPriceLabel = p_PriceLabels->at(i);
+        plotPrice = TmpPriceLabel.Price;
+        msg = TmpPriceLabel.Label;
+        COLORREF LabelColor = (COLORREF)TmpPriceLabel.LabelColor;
+        ::SetTextColor(DeviceContext, LabelColor);
+
+        // calculate coords
+        x += xOffset;
+        y = sc.RegionValueToYPixelCoordinate(plotPrice, sc.GraphRegion);
+        y += yOffset;
+        ::SetTextAlign(DeviceContext, TA_NOUPDATECP);
+//log.Format("[%d/%d] %d (%f) => %s", (i+1), NumPriceLabels, y, plotPrice, msg.GetChars());
+//sc.AddMessageToLog(log,1);
+        ::TextOut(DeviceContext, x, y, msg, msg.GetLength());
+
+        // delete font
+        DeleteObject(hFont);
+    }
+
+    return;
 }
