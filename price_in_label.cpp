@@ -24,6 +24,7 @@ SCSFExport scsf_PriceInLabel(SCStudyInterfaceRef sc)
     SCInputRef i_NumDigitsToDisplay = sc.Input[6];
     SCInputRef i_LastTradeFg = sc.Input[7];
     SCInputRef i_LastTradeBg = sc.Input[8];
+    SCInputRef i_TargetColumn = sc.Input[9];
 
     // Set configuration variables
     if (sc.SetDefaults)
@@ -58,6 +59,10 @@ SCSFExport scsf_PriceInLabel(SCStudyInterfaceRef sc)
         i_LastTradeBg.Name = "Last Trade Background Color";
         i_LastTradeBg.SetColor(0,255,0);
 
+        i_TargetColumn.Name = "Which DOM Column To Use For Price?";
+        i_TargetColumn.SetCustomInputStrings("Label;General Purpose 1;General Purpose 2;");
+        i_TargetColumn.SetCustomInputIndex(0);
+
         return;
     }
 
@@ -80,9 +85,15 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     int NumDigitsToDisplay = sc.Input[6].GetInt();
     COLORREF LastTradeFg = sc.Input[7].GetColor();
     COLORREF LastTradeBg = sc.Input[8].GetColor();
+    int SelectedTargetColumn = sc.Input[9].GetIndex();
+
+    // default to label col, otherwise select chosen target col for price
+    int x = sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_SUBGRAPH_LABELS);
+    if (SelectedTargetColumn == 0) x = sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_SUBGRAPH_LABELS);
+    else if (SelectedTargetColumn == 1) x = sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_GENERAL_PURPOSE_1);
+    else if (SelectedTargetColumn == 2) x = sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_GENERAL_PURPOSE_2);
 
     // grab x pixel coords
-    int x = sc.GetDOMColumnLeftCoordinate(n_ACSIL::DOM_COLUMN_SUBGRAPH_LABELS);
     x += xOffset;
     int y;
     SCString msg;
