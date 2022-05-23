@@ -80,6 +80,8 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     const COLORREF blk = COLOR_BLACK;
     const COLORREF blue = COLOR_BLUE;
     const COLORREF red = COLOR_RED;
+    const COLORREF NewHighsColor = sc.Subgraph[0].PrimaryColor;
+    const COLORREF NewLowsColor = sc.Subgraph[1].PrimaryColor;
     // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-settextcolor
     ::SetTextColor(DeviceContext, wht);
     ::SetBkColor(DeviceContext, blk);
@@ -153,13 +155,13 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
             bottomY = sc.RegionValueToYPixelCoordinate(PrevLod, 0);
 
             msg.Format("%d", NumHighs);
-            ::SetTextColor(DeviceContext, blue);
+            ::SetTextColor(DeviceContext, NewHighsColor);
             ::SetTextAlign(DeviceContext, TA_NOUPDATECP);
             // had to do some fudging of the offsets here to make things look right to human eye
             ::TextOut(DeviceContext, topX, topY - (2*VerticalOffset), msg, msg.GetLength());
 
             msg.Format("%d", NumLows);
-            ::SetTextColor(DeviceContext, red);
+            ::SetTextColor(DeviceContext, NewLowsColor);
             ::SetTextAlign(DeviceContext, TA_NOUPDATECP);
             // had to do some fudging of the offsets here to make things look right to human eye
             ::TextOut(DeviceContext, topX, bottomY - (VerticalOffset/2), msg, msg.GetLength());
