@@ -20,6 +20,9 @@ SCSFExport scsf_NumHighsLows(SCStudyInterfaceRef sc)
     SCInputRef i_VerticalOffset = sc.Input[0];
     SCInputRef i_HorizontalOffset = sc.Input[1];
     SCInputRef i_FontSize = sc.Input[2];
+    SCInputRef i_SessionStartTime = sc.Input[3];
+    SCInputRef i_SessionEndTime = sc.Input[4];
+    SCInputRef i_NoonIdxOffset = sc.Input[5];
 
     // Set configuration variables
     if (sc.SetDefaults)
@@ -43,6 +46,16 @@ SCSFExport scsf_NumHighsLows(SCStudyInterfaceRef sc)
 
         i_FontSize.Name = "Font Size";
         i_FontSize.SetInt(35);
+
+        i_SessionStartTime.Name = "Session Start Time";
+        i_SessionStartTime.SetTime(sc.StartTime1);
+
+        i_SessionEndTime.Name = "Session End Time";
+        i_SessionEndTime.SetTime(sc.EndTime1);
+
+        i_NoonIdxOffset.Name = "Noon Bar Index Offset From Session Start";
+        i_NoonIdxOffset.SetInt(3);
+        i_NoonIdxOffset.SetIntLimits(1, 10);
         return;
     }
 
@@ -56,6 +69,19 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     // subgraphs
     SCSubgraphRef s_NumHighs = sc.Subgraph[0];
     SCSubgraphRef s_NumLows = sc.Subgraph[1];
+
+    // Session Start/End times and hours/minutes of each
+    SCDateTime SessionStartTime;
+    SCDateTime SessionEndTime;
+
+    SessionStartTime.SetTime(sc.Input[3].GetTime());
+    SessionEndTime.SetTime(sc.Input[4].GetTime());
+
+    int SessionStartTimeHour = SessionStartTime.GetHour();
+    int SessionStartTimeMinute = SessionStartTime.GetMinute();
+    int SessionEndTimeHour = SessionEndTime.GetHour();
+    int SessionEndTimeMinute = SessionEndTime.GetMinute();
+    int NoonIdxHour = SessionStartTimeHour + sc.Input[5].GetInt();
 
     int VerticalOffset = sc.Input[0].GetInt();
     int HorizontalOffset = sc.Input[1].GetInt();
@@ -72,8 +98,8 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     // Windows GDI font creation
     // https://docs.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createfonta
     HFONT hFont;
-    hFont = CreateFont(fontSize,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
-            CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY, DEFAULT_PITCH,TEXT(chartFont));
+    hFont = CreateFont(fontSize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS,
+        CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, TEXT(chartFont));
 
     // https://docs.microsoft.com/en-us/windows/win32/gdi/colorref
     const COLORREF wht = COLOR_WHITE;
@@ -92,25 +118,25 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     SelectObject(DeviceContext, hFont);
 
     // grab the memory address of f0
-    float &PrevHod = sc.GetPersistentFloat(0);
-    int &NumHighs = sc.GetPersistentInt(0);
-    float &PrevLod = sc.GetPersistentFloat(1);
-    int &NumLows = sc.GetPersistentInt(1);
-    int &NoonIdx = sc.GetPersistentInt(2);
+    float& PrevHod = sc.GetPersistentFloat(0);
+    int& NumHighs = sc.GetPersistentInt(0);
+    float& PrevLod = sc.GetPersistentFloat(1);
+    int& NumLows = sc.GetPersistentInt(1);
+    int& NoonIdx = sc.GetPersistentInt(2);
 
-    for (int i=0; i<sc.ArraySize; i++) {
+    for (int i = 0; i < sc.ArraySize; i++) {
         // RESET at new day
 
         // grab the date and time for the bar thats being processed
         SCDateTime BarDateTime = sc.BaseDateTimeIn[i];
         int Day = BarDateTime.GetDay();
-        SCDateTime PrevBarDateTime = sc.BaseDateTimeIn[i-1];
+        SCDateTime PrevBarDateTime = sc.BaseDateTimeIn[i - 1];
         int PrevBarDay = PrevBarDateTime.GetDay();
         int Hour = BarDateTime.GetHour();
         int Minute = BarDateTime.GetMinute();
 
         // if its 930am then reset all our counters
-        if (Hour < 9 || Day != PrevBarDay || (Hour == 9 && Minute < 30)) {
+        if (Hour < SessionStartTimeHour || Day != PrevBarDay || (Hour == SessionStartTimeHour && Minute < SessionStartTimeMinute)) {
             // reset
             PrevHod = 0;
             NumHighs = 0;
@@ -141,13 +167,13 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
         s_NumLows[i] = NumLows;
 
         // NoonIdx the bar index of noon, I used this as a way to make the numbers appear in a centered place, consistently
-        if (Hour < 12) {
+        if (Hour < NoonIdxHour) {
             NoonIdx = sc.IndexOfLastVisibleBar;
         }
-        else if (Hour == 12 && Minute == 0) {
+        else if (Hour == NoonIdxHour && Minute == 0) {
             NoonIdx = i;
         }
-        if ((Hour == 16 && Minute == 0) || i == sc.ArraySize - 1) {
+        if ((Hour == SessionEndTimeHour && Minute == SessionEndTimeMinute) || i == sc.ArraySize - 1) {
             topX = sc.BarIndexToXPixelCoordinate(NoonIdx) + HorizontalOffset;
             // main chart graph
             topY = sc.RegionValueToYPixelCoordinate(PrevHod, 0);
@@ -158,13 +184,13 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
             ::SetTextColor(DeviceContext, NewHighsColor);
             ::SetTextAlign(DeviceContext, TA_NOUPDATECP);
             // had to do some fudging of the offsets here to make things look right to human eye
-            ::TextOut(DeviceContext, topX, topY - (2*VerticalOffset), msg, msg.GetLength());
+            ::TextOut(DeviceContext, topX, topY - (2 * VerticalOffset), msg, msg.GetLength());
 
             msg.Format("%d", NumLows);
             ::SetTextColor(DeviceContext, NewLowsColor);
             ::SetTextAlign(DeviceContext, TA_NOUPDATECP);
             // had to do some fudging of the offsets here to make things look right to human eye
-            ::TextOut(DeviceContext, topX, bottomY - (VerticalOffset/2), msg, msg.GetLength());
+            ::TextOut(DeviceContext, topX, bottomY - (VerticalOffset / 2), msg, msg.GetLength());
         }
     }
 
