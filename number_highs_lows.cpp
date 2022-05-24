@@ -200,7 +200,7 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
             s_UseTool Tool;
 
             Tool.ChartNumber = sc.ChartNumber;
-            Tool.LineNumber = 52320220;
+            Tool.LineNumber = 52320220 + Day;
             Tool.DrawingType = DRAWING_LINE;
             Tool.LineStyle = LINESTYLE_DOT;
             Tool.BeginValue = PrevHod;
@@ -216,7 +216,7 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
             Tool.Clear();
 
             Tool.ChartNumber = sc.ChartNumber;
-            Tool.LineNumber = 52320221;
+            Tool.LineNumber = 5232022 - Day;
             Tool.DrawingType = DRAWING_LINE;
             Tool.LineStyle = LINESTYLE_DOT;
             Tool.BeginValue = PrevLod;
