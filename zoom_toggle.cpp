@@ -50,6 +50,7 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
     int &PrevChartBarSpacing = sc.GetPersistentInt(0);
     int &PrevNumBarsWhenZoomed = sc.GetPersistentInt(1);
     int &NumFillSpaceBars = sc.GetPersistentInt(2);
+    int &IsZoomed = sc.GetPersistentInt(3);
 
     // grab the chart's current bar spacing
     int ChartBarSpacing = sc.ChartBarSpacing;
@@ -87,15 +88,21 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
         // update our prev bar spacing for next time
         PrevChartBarSpacing = ChartBarSpacing;
 
-        // toggle fill space
-        if (sc.PreserveFillSpace == 1 && sc.NumFillSpaceBars > 0) {
+        if (IsZoomed) {
+            // zoom back out
+            // put back the wide visible view of bars
+            sc.NumFillSpaceBars = NumFillSpaceBars;
+            // turn on lock fill space again if we had it on before
+            if (NumFillSpaceBars > 0) {
+                sc.PreserveFillSpace = 1;
+            }
+        }
+        else if (!IsZoomed) {
+            // zoom in
+            // store our locked fill space num bars
             NumFillSpaceBars = sc.NumFillSpaceBars;
             sc.PreserveFillSpace = 0;
             sc.NumFillSpaceBars = 0;
-        }
-        else if (sc.PreserveFillSpace == 0 && NumFillSpaceBars > 0) {
-            sc.NumFillSpaceBars = NumFillSpaceBars;
-            sc.PreserveFillSpace = 1;
         }
     }
 }
