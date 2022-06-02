@@ -49,9 +49,18 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
     // persist these values between ticks
     int &PrevChartBarSpacing = sc.GetPersistentInt(0);
     int &PrevNumBarsWhenZoomed = sc.GetPersistentInt(1);
+    int &NumFillSpaceBars = sc.GetPersistentInt(2);
 
     // grab the chart's current bar spacing
     int ChartBarSpacing = sc.ChartBarSpacing;
+
+    // grab the chart's current fill space number of bars
+    if (!NumFillSpaceBars) {
+        NumFillSpaceBars = sc.NumFillSpaceBars;
+    }
+
+    msg.Format("NumFillSpace=%d", NumFillSpaceBars);
+    sc.AddMessageToLog(msg, 1);
 
     // calculate the number of visible bars on the chart at the moment
     int NumBarsVisible = sc.IndexOfLastVisibleBar - sc.IndexOfFirstVisibleBar + 1;
@@ -80,6 +89,16 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
 
         // update our prev bar spacing for next time
         PrevChartBarSpacing = ChartBarSpacing;
+
+        // toggle fill space
+        if (sc.NumFillSpaceBars > 0) {
+            NumFillSpaceBars = sc.NumFillSpaceBars;
+            sc.PreserveFillSpace = 0;
+            sc.NumFillSpaceBars = 0;
+        }
+        else if (sc.PreserveFillSpace == 0 && NumFillSpaceBars > 0) {
+            sc.NumFillSpaceBars = NumFillSpaceBars;
+            sc.PreserveFillSpace = 1;
+        }
     }
 }
-
