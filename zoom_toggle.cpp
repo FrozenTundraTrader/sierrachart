@@ -59,9 +59,6 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
         NumFillSpaceBars = sc.NumFillSpaceBars;
     }
 
-    msg.Format("NumFillSpace=%d", NumFillSpaceBars);
-    sc.AddMessageToLog(msg, 1);
-
     // calculate the number of visible bars on the chart at the moment
     int NumBarsVisible = sc.IndexOfLastVisibleBar - sc.IndexOfFirstVisibleBar + 1;
 
@@ -91,7 +88,7 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
         PrevChartBarSpacing = ChartBarSpacing;
 
         // toggle fill space
-        if (sc.NumFillSpaceBars > 0) {
+        if (sc.PreserveFillSpace == 1 && sc.NumFillSpaceBars > 0) {
             NumFillSpaceBars = sc.NumFillSpaceBars;
             sc.PreserveFillSpace = 0;
             sc.NumFillSpaceBars = 0;
@@ -102,3 +99,4 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
         }
     }
 }
+
