@@ -13,6 +13,7 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
     SCInputRef i_Enabled = sc.Input[0];
     SCInputRef i_NumBarsWhenZoomed = sc.Input[1];
     SCInputRef i_KeyCodeForZoom = sc.Input[2];
+    SCInputRef i_NumTicksYAxis = sc.Input[3];
 
     // logging obj
     SCString msg;
@@ -20,7 +21,7 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
     // Configuration
     if (sc.SetDefaults)
     {
-        sc.GraphShortName = "Zoom Toggle";
+        sc.GraphShortName = "Zoom";
         sc.GraphRegion = 0;
 
         i_Enabled.Name = "Enabled?";
@@ -32,6 +33,9 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
         i_KeyCodeForZoom.Name = "ASCII Key Code for zoom? (ex: [SPACE] is 32, [.] is 46, [TAB] is 9)";
         i_KeyCodeForZoom.SetInt(32);
         i_KeyCodeForZoom.SetIntLimits(0, 127);
+
+        i_NumTicksYAxis.Name = "Number of ticks to zoom into on Y-Axis (0=all)";
+        i_NumTicksYAxis.SetInt(0);
 
         // allow study to receive input events from our keyboard
         sc.ReceiveCharacterEvents = 1;
@@ -45,6 +49,7 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
     // fetch initial settings from inputs
     int NumBarsWhenZoomed = i_NumBarsWhenZoomed.GetInt();
     int KeyCodeForZoom = i_KeyCodeForZoom.GetInt();
+    int NumTicksYAxis = i_NumTicksYAxis.GetInt();
 
     // persist these values between ticks
     int &PrevChartBarSpacing = sc.GetPersistentInt(0);
@@ -96,6 +101,12 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
             if (NumFillSpaceBars > 0) {
                 sc.PreserveFillSpace = 1;
             }
+
+            // un-zoom y-axis if setting was set
+            if (NumTicksYAxis > 0) {
+                sc.BaseGraphScaleConstRange = 0;
+                sc.BaseGraphScaleRangeType = SCALE_AUTO;
+            }
         }
         else if (!IsZoomed) {
             // zoom in
@@ -103,7 +114,17 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
             NumFillSpaceBars = sc.NumFillSpaceBars;
             sc.PreserveFillSpace = 0;
             sc.NumFillSpaceBars = 0;
+
+            // zoom y-axis if setting was set
+            if (NumTicksYAxis > 0) {
+                sc.BaseGraphScaleRangeType = SCALE_CONSTRANGECENTER;
+                sc.BaseGraphScaleConstRange = (float)NumTicksYAxis / 100.0f;
+            }
+
         }
+
+        // toggle our zoom status
+        IsZoomed = !IsZoomed;
+
     }
 }
-
