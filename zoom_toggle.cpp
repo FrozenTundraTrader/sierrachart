@@ -118,7 +118,7 @@ SCSFExport scsf_ZoomToggle(SCStudyInterfaceRef sc)
             // zoom y-axis if setting was set
             if (NumTicksYAxis > 0) {
                 sc.BaseGraphScaleRangeType = SCALE_CONSTRANGECENTER;
-                sc.BaseGraphScaleConstRange = (float)NumTicksYAxis / 100.0f;
+                sc.BaseGraphScaleConstRange = (float)NumTicksYAxis;
             }
 
         }
