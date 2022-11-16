@@ -20,12 +20,15 @@ SCDLLName("Frozen Tundra - Google Sheets Levels Importer")
         (int)    Text Alignment
 */
 
+// simple struct to hold bare minimum data from google sheets
+// we will populate a vector of these and pass to the WinGDI function for drawing
 struct PriceLabel {
     float Price;
     SCString Label;
     COLORREF LabelColor;
 };
 
+// WinGDI draw function definition
 void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc);
 
 SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
@@ -33,19 +36,26 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
     // logging object
     SCString msg;
 
+    // General settings
     SCInputRef i_FilePath = sc.Input[0];
-    SCInputRef i_Transparency = sc.Input[1];
 
-    // chart related settings
+    // Chart related settings
+    SCInputRef i_Transparency = sc.Input[1];
     SCInputRef i_DrawLinesOnChart = sc.Input[3];
     SCInputRef i_ShowPriceOnChart = sc.Input[4];
 
-    // (separate) DOM related settings
+    // DOM related settings
     SCInputRef i_ShowLabelOnDom = sc.Input[5];
     SCInputRef i_DomFontSize = sc.Input[6];
     SCInputRef i_xOffset = sc.Input[7];
     SCInputRef i_yOffset = sc.Input[8];
     SCInputRef i_LabelBgColor = sc.Input[9];
+
+    // recalc interval input
+    // 0 = off
+    // 1 = recalc every 1 min
+    // 5 = recalc every 5 min...
+    SCInputRef i_RecalcInterval = sc.Input[10];
 
     // Set configuration variables
     if (sc.SetDefaults)
@@ -89,8 +99,32 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
         i_LabelBgColor.Name = " > DOM Label Background Color";
         i_LabelBgColor.SetColor(255,255,255);
 
+        i_RecalcInterval.Name = "Recalculation Interval (0=off, 5=5min)";
+        i_RecalcInterval.SetInt(0);
+
         return;
     }
+
+    // TODO: only perform recalc automatically if interval set to > 0
+
+    // calculate the last time we ran this study
+    int RecalcIntervalMin = i_RecalcInterval.GetInt();
+    int RecalcIntervalSec = RecalcIntervalMin * 60;
+
+    int &LastUpdated = sc.GetPersistentInt(9);
+
+    // grab actual current time
+    SCDateTime Now = sc.CurrentSystemDateTime;
+    // convert time into flat number, into seconds (minutes/hours/whatever)
+    int TimeInSec = Now.GetTimeInSeconds();
+    // perform our check if enough time has elapsed to do a recalc
+    if (LastUpdated + RecalcIntervalSec > TimeInSec) {
+        // we have not elapsed enough time, do not recalc
+        return;
+    }
+
+    // update our marker for when we last updated
+    LastUpdated = TimeInSec;
 
 
     // hold our HTTP Response
@@ -100,7 +134,9 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
     // add specific code to output as CSV attachment from Google Sheets
     Url.Format("%s/gviz/tq?tqx=out:csv", Url.GetChars());
 
+    // IMPORTANT
     // create pointer to struct array
+    // we need this vector to persist so we can pass it to the WinGDI function
     std::vector<PriceLabel>* p_PriceLabels = reinterpret_cast<std::vector<PriceLabel>*>(sc.GetPersistentPointer(0));
     if (p_PriceLabels == NULL) {
         // array of structs to hold our CSV labels for each price
@@ -108,6 +144,7 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
         sc.SetPersistentPointer(0, p_PriceLabels);
     }
     else {
+        // clear old levels so we can recalc
         p_PriceLabels->clear();
     }
 
@@ -117,8 +154,8 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
     // latest request status
     int& RequestState = sc.GetPersistentInt(1);
 
-    // Only run on full recalc
-    if (sc.Index == 0) {
+    // Only run on full recalc OR if recalc interval is set
+    if (sc.Index == 0 || RecalcIntervalMin > 0) {
         if (RequestState == REQUEST_NOT_SENT)
         {
             // Make a request for a text file on the server. When the request is complete and all of the data
@@ -135,7 +172,6 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
             else
                 RequestState = REQUEST_SENT;
         }
-
     }
 
     if (RequestState == REQUEST_SENT && sc.HTTPResponse != "")
@@ -274,7 +310,8 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
         if (i_ShowLabelOnDom.GetInt() == 1 && price > 0 && note != "") {
             PriceLabel TmpPriceLabel = { price, note, Tool.Color };
             if (price2 > 0) {
-                TmpPriceLabel.Label.Format("Rect1:%s", note.GetChars());
+                // RECTANGLE only
+                TmpPriceLabel.Label.Format("1.%s", note.GetChars());
             }
             //PriceLabels.insert(PriceLabels.end(), TmpPriceLabel);
             p_PriceLabels->insert(p_PriceLabels->end(), TmpPriceLabel);
@@ -282,8 +319,9 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
 //sc.AddMessageToLog(msg, 1);
 
             if (price2 > 0) {
+                // RECTANGLE only
                 TmpPriceLabel = { price2, note, Tool.Color };
-                TmpPriceLabel.Label.Format("Rect2:%s", note.GetChars());
+                TmpPriceLabel.Label.Format("2.%s", note.GetChars());
                 p_PriceLabels->insert(p_PriceLabels->end(), TmpPriceLabel);
             }
         }
@@ -296,18 +334,6 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
 {
 
     SCString log;
-//    // keep track of last write time
-//    SCDateTime CurrTime = sc.CurrentSystemDateTime;
-//    int UpdateIntervalSeconds = 10;
-//    int &LastWrittenSec = sc.GetPersistentInt(5);
-//log.Format("LastWrittenSec=%d vs %d, return=%d", LastWrittenSec, CurrTime.GetTimeInSeconds(), (LastWrittenSec + UpdateIntervalSeconds > CurrTime.GetTimeInSeconds()));
-//sc.AddMessageToLog(log, 1);
-//    if (LastWrittenSec + UpdateIntervalSeconds > CurrTime.GetTimeInSeconds()) {
-//log.Format("Should be returning here...");
-//sc.AddMessageToLog(log, 1);
-//        return;
-//    }
-//    LastWrittenSec = CurrTime.GetTimeInSeconds();
 
     int xOffset = sc.Input[7].GetInt();
     int yOffset = sc.Input[8].GetInt();
