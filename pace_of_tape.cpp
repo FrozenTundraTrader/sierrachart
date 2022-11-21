@@ -25,6 +25,8 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     int InputIdx = 0;
     SCInputRef i_Symbol = sc.Input[++InputIdx];
     SCInputRef i_Layout = sc.Input[++InputIdx];
+    SCInputRef i_Shape = sc.Input[++InputIdx];
+    SCInputRef i_TicksOrVolume = sc.Input[++InputIdx];
     SCInputRef i_NumRecordsToExamine = sc.Input[++InputIdx];
     SCInputRef i_NumSquares = sc.Input[++InputIdx];
     SCInputRef i_SquareSize = sc.Input[++InputIdx];
@@ -51,13 +53,21 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         i_Layout.SetCustomInputStrings("Vertical;Horizontal");
         i_Layout.SetCustomInputIndex(1);
 
-        i_NumRecordsToExamine.Name = "Number of seconds to examine";
-        i_NumRecordsToExamine.SetInt(30);
+        i_Shape.Name = "Shape";
+        i_Shape.SetCustomInputStrings("Squares;Circles");
+        i_Shape.SetCustomInputIndex(0);
 
-        i_NumSquares.Name = "Number of squares";
+        i_TicksOrVolume.Name = "Calculate Ticks or Volume Per Second";
+        i_TicksOrVolume.SetCustomInputStrings("Ticks;Volume");
+        i_TicksOrVolume.SetCustomInputIndex(0);
+
+        i_NumRecordsToExamine.Name = "Number of seconds to examine";
+        i_NumRecordsToExamine.SetInt(60);
+
+        i_NumSquares.Name = "Number of squares/circles";
         i_NumSquares.SetInt(5);
 
-        i_SquareSize.Name = "Square Size";
+        i_SquareSize.Name = "Square/Circle Size";
         i_SquareSize.SetInt(2);
 
         i_OutlineColor.Name = "Outline Color";
@@ -108,6 +118,8 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
 
     // PROBLEM - no tape found, bomb out
     if (TimeSales.Size() == 0) {
+        //msg.Format("ERROR: GetTimeAndSales() returned 0 records for %s", SymbolToUse.GetChars());
+        //sc.AddMessageToLog(msg, 1);
         return;
     }
 
@@ -136,6 +148,9 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     // count backwards to get the "start" time we'll be examining
     int StartTimeInSec = LastTimeInSec - NumSecondsToExamine;
 
+// msg.Format("%d records found for %s, Start=%d, Last=%d, GoBack=%d", NumRecords, SymbolToUse.GetChars(), StartTimeInSec, LastTimeInSec, GoBackCounter);
+// sc.AddMessageToLog(msg, 1);
+
     // instantiate our struct based on the number of seconds we wish to examine
     for (int i=0; i<NumSecondsToExamine; i++) {
         RecordsPerUnit tmp;
@@ -145,7 +160,11 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     }
 
     // grab first tick's time
-    int FirstTimeInSec = Records[0].TimeInSeconds;
+    //int FirstTimeInSec = Records[0].TimeInSeconds;
+
+    // 0 = ticks
+    // 1 = volume
+    int TicksOrVolume = i_TicksOrVolume.GetIndex();
 
     // start storing # ticks at the start time up to end time
     for (int i=0; i<NumRecords; i++) {
@@ -156,8 +175,12 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         // grab integer representation of time in seconds
         int TimeInSec = ts_DateTime.GetTimeInSeconds();
 
+// msg.Format("%d >=? %d ==> %d", StartTimeInSec, TimeInSec, StartTimeInSec >= TimeInSec);
+// sc.AddMessageToLog(msg, 1);
+//return;
+
         // skip anything before our intended start time
-        if (TimeInSec < FirstTimeInSec) continue;
+        if (TimeInSec < StartTimeInSec) continue;
 
         // grab the SIDE of the execution (Bid or Ask)
         int ts_Type = TimeSales[i].Type;
@@ -174,7 +197,12 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
             }
             if (MatchingIdx >= 0) {
                 // add this tick to this idx
-                Records[MatchingIdx].NumRecords++;
+                if (TicksOrVolume == 0) {
+                    Records[MatchingIdx].NumRecords++;
+                }
+                else if (TicksOrVolume == 1) {
+                    Records[MatchingIdx].NumRecords += TimeSales[i].Volume;
+                }
             }
         }
     }
@@ -284,6 +312,11 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     // 0 = vertical, 1 = horizontal
     int Layout = i_Layout.GetIndex();
 
+    // grab shape
+    // 0 = squares
+    // 1 = circles
+    int Shape = i_Shape.GetIndex();
+
     // draw the squares
     for (int i=0; i<NumSquares; i++) {
 
@@ -295,6 +328,9 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
 
         // draw a rectangle
         Tool.DrawingType = DRAWING_RECTANGLEHIGHLIGHT;
+        if (Shape == 1) {
+            Tool.DrawingType = DRAWING_ELLIPSEHIGHLIGHT;
+        }
 
         // line number HAS TO BE UNIQUE for each rectangle
         // even across multiple instances of the study!
@@ -321,8 +357,8 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         else if (Layout == 1) {
             Tool.BeginValue = (2*SquareSize) + VerticalOffset;
             Tool.EndValue = SquareSize + VerticalOffset;
-            Tool.BeginDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize) + (i*SquareSize);
-            Tool.EndDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize) + ((i+1)*SquareSize);
+            Tool.BeginDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) + (i*SquareSize);
+            Tool.EndDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) + ((i+1)*SquareSize);
         }
 
         // always add if new or adjust existing rectangle
@@ -370,7 +406,7 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         }
         else if (Layout == 1) {
             CurrNumRecordsTool.BeginValue = (2*SquareSize) + VerticalOffset;
-            CurrNumRecordsTool.BeginDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize) - (2*SquareSize);
+            CurrNumRecordsTool.BeginDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) - (2*SquareSize);
         }
         CurrNumRecordsTool.AddMethod = UTAM_ADD_OR_ADJUST;
         CurrNumRecordsTool.FontSize = i_FontSize.GetInt();
@@ -391,7 +427,7 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         }
         else if (Layout == 1) {
             MaxNumRecordsTool.BeginValue = (2*SquareSize) + VerticalOffset;
-            MaxNumRecordsTool.BeginDateTime = 150 - HorizontalOffset + (SquareSize/2);
+            MaxNumRecordsTool.BeginDateTime = 150 - HorizontalOffset - (SquareMultiplier*SquareSize);
         }
         MaxNumRecordsTool.AddMethod = UTAM_ADD_OR_ADJUST;
         MaxNumRecordsTool.FontSize = i_FontSize.GetInt();
@@ -412,7 +448,7 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         }
         if (Layout == 1) {
             PoTTool.BeginValue = (2*SquareSize) + VerticalOffset + SquareSize;
-            PoTTool.BeginDateTime = 150 - HorizontalOffset - (SquareSize*(NumSquares/2)) - SquareSize;
+            PoTTool.BeginDateTime = 150 - HorizontalOffset - (SquareMultiplier*SquareSize*(NumSquares/2)) - (2*SquareSize);
         }
         PoTTool.AddMethod = UTAM_ADD_OR_ADJUST;
         PoTTool.FontSize = i_FontSize.GetInt();
