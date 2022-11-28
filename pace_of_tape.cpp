@@ -27,6 +27,7 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     SCInputRef i_Layout = sc.Input[++InputIdx];
     SCInputRef i_Shape = sc.Input[++InputIdx];
     SCInputRef i_TicksOrVolume = sc.Input[++InputIdx];
+    SCInputRef i_CalcMethod = sc.Input[++InputIdx];
     SCInputRef i_NumRecordsToExamine = sc.Input[++InputIdx];
     SCInputRef i_NumSquares = sc.Input[++InputIdx];
     SCInputRef i_SquareSize = sc.Input[++InputIdx];
@@ -39,6 +40,11 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     SCInputRef i_FontSize = sc.Input[++InputIdx];
     SCInputRef i_VerticalOffset = sc.Input[++InputIdx];
     SCInputRef i_HorizontalOffset = sc.Input[++InputIdx];
+
+    // subgraphs
+    SCSubgraphRef s_Current = sc.Subgraph[0];
+    SCSubgraphRef s_Max     = sc.Subgraph[1];
+    SCSubgraphRef s_PoT     = sc.Subgraph[2];
 
     // Set configuration variables
     if (sc.SetDefaults)
@@ -60,6 +66,10 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         i_TicksOrVolume.Name = "Calculate Ticks or Volume Per Second";
         i_TicksOrVolume.SetCustomInputStrings("Ticks;Volume");
         i_TicksOrVolume.SetCustomInputIndex(0);
+
+        i_CalcMethod.Name = "Calculation Method";
+        i_CalcMethod.SetCustomInputStrings("Original;Lagging Max");
+        i_CalcMethod.SetCustomInputIndex(1);
 
         i_NumRecordsToExamine.Name = "Number of seconds to examine";
         i_NumRecordsToExamine.SetInt(60);
@@ -96,6 +106,17 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
 
         i_HorizontalOffset.Name = "Horizontal Offset";
         i_HorizontalOffset.SetInt(5);
+
+
+        // subgraphs
+        s_Current.Name      = "Current Rate";
+        s_Current.DrawStyle = DRAWSTYLE_IGNORE;
+
+        s_Max.Name      = "Max Rate";
+        s_Max.DrawStyle = DRAWSTYLE_IGNORE;
+
+        s_PoT.Name      = "Pace of Tape";
+        s_PoT.DrawStyle = DRAWSTYLE_IGNORE;
 
         return;
     }
@@ -208,15 +229,31 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     }
 
     // calculate the max ticks/sec and overall avg
+    int CalcMethod = i_CalcMethod.GetIndex();
     int SumRecords = 0;
     float AvgRecords = 0;
     int MaxRecordsPerSecond = 0;
+    int MaxRecordsTimeInSec = 0;
     for (int i=0; i<NumSecondsToExamine; i++) {
         //msg.Format("%d %d = %d", i, Records[i].TimeInSeconds, Records[i].NumRecords);
         //sc.AddMessageToLog(msg, 1);
         SumRecords += Records[i].NumRecords;
         if (Records[i].NumRecords > MaxRecordsPerSecond) {
-            MaxRecordsPerSecond = Records[i].NumRecords;
+            MaxRecordsTimeInSec = Records[i].TimeInSeconds;
+
+            if (CalcMethod == 0) {
+                // original calculation
+                // set max whenever a new max records is found
+                MaxRecordsPerSecond = Records[i].NumRecords;
+            }
+            else if (CalcMethod == 1) {
+                // "lagging maximum" calculation
+                // only set the max when it isn't happening right now, otherwise
+                // we'll never see the gauge max out during rapid pace
+                if (MaxRecordsTimeInSec < LastTimeInSec - (NumSecondsToExamine/NumSquares)) {
+                    MaxRecordsPerSecond = Records[i].NumRecords;
+                }
+            }
         }
     }
     AvgRecords = SumRecords / NumSecondsToExamine;
@@ -236,8 +273,11 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     // int CurrNumRecords = Records[NumSecondsToExamine-1].NumRecords;
     int CurrNumRecords = QuickAvg;
 
+    // safety check/min feel check
+    if (CurrNumRecords == 0) CurrNumRecords = Records[NumSecondsToExamine-1].NumRecords;
+
     // modify the max because we're never hitting the max again
-    MaxRecordsPerSecond = MaxRecordsPerSecond - QuickAvg;
+    //MaxRecordsPerSecond = MaxRecordsPerSecond - QuickAvg;
 
     // safety checks
     if (MaxRecordsPerSecond == 0) MaxRecordsPerSecond = 1;
@@ -391,6 +431,14 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         sc.UseTool(Tool);
     }
 
+    // populate subgraphs
+    s_Current[sc.Index] = CurrNumRecords;
+    s_Max[sc.Index] = MaxRecordsPerSecond;
+    s_PoT[sc.Index] = PaceOfTape;
+
+    // contracts vs shares for text
+    bool IsStock = sc.SecurityType() == n_ACSIL::SECURITY_TYPE_STOCK;
+
     // user input set to draw the text statistics
     if (i_EnableText.GetInt() == 1) {
         // CURR NUM RECORDS/SEC TEXT
@@ -411,7 +459,13 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         CurrNumRecordsTool.AddMethod = UTAM_ADD_OR_ADJUST;
         CurrNumRecordsTool.FontSize = i_FontSize.GetInt();
         CurrNumRecordsTool.Color = i_TextColor.GetColor();
-        CurrNumRecordsTool.Text.Format("%d/s", CurrNumRecords);
+        if (IsStock && TicksOrVolume == 1) {
+            CurrNumRecords = CurrNumRecords / 1000;
+            CurrNumRecordsTool.Text.Format("%dK/s", CurrNumRecords);
+        }
+        else {
+            CurrNumRecordsTool.Text.Format("%d/s", CurrNumRecords);
+        }
         sc.UseTool(CurrNumRecordsTool);
 
         // MAX NUMBER
@@ -432,7 +486,13 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         MaxNumRecordsTool.AddMethod = UTAM_ADD_OR_ADJUST;
         MaxNumRecordsTool.FontSize = i_FontSize.GetInt();
         MaxNumRecordsTool.Color = i_TextColor.GetColor();
-        MaxNumRecordsTool.Text.Format("%d/s", MaxRecordsPerSecond);
+        if (IsStock && TicksOrVolume == 1) {
+            MaxRecordsPerSecond = MaxRecordsPerSecond / 1000;
+            MaxNumRecordsTool.Text.Format("%dK/s", MaxRecordsPerSecond);
+        }
+        else {
+            MaxNumRecordsTool.Text.Format("%d/s", MaxRecordsPerSecond);
+        }
         sc.UseTool(MaxNumRecordsTool);
 
         // Pace Of Tape TEXT
