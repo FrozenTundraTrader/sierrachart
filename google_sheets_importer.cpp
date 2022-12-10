@@ -118,7 +118,7 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
     // convert time into flat number, into seconds (minutes/hours/whatever)
     int TimeInSec = Now.GetTimeInSeconds();
     // perform our check if enough time has elapsed to do a recalc
-    if (LastUpdated + RecalcIntervalSec > TimeInSec) {
+    if (LastUpdated > 0 && LastUpdated + RecalcIntervalSec > TimeInSec && sc.Index != 0) {
         // we have not elapsed enough time, do not recalc
         return;
     }
@@ -393,9 +393,10 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
 //sc.AddMessageToLog(log,1);
         ::TextOut(DeviceContext, x, y, msg, msg.GetLength());
 
-        // delete font
-        DeleteObject(hFont);
     }
+
+    // delete font
+    DeleteObject(hFont);
 
     return;
 }
