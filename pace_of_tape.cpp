@@ -14,7 +14,50 @@ struct RecordsPerUnit {
 
     // number of records tallied for this second in time
     int NumRecords;
+
+    int MaxRecords;
 };
+
+struct LineNumber {
+    int StudyId;
+    int TrailIndex;
+    int SquareIndex;
+    int LineNumber;
+    int TimeInSeconds;
+};
+
+struct GlobalLineNumbers {
+    // global to keep track of all drawings of all rectangles across all instances
+    // of this study on the same chart
+    int NextLineNumber = 20221205;
+
+    std::vector<LineNumber> LineNumbers;
+
+    int AddLineNumber(int StudyId, int TimeInSeconds, int SquareIndex) {
+
+        // search for existing line number
+        for (int i=0; i<LineNumbers.size(); i++) {
+            LineNumber tmp = LineNumbers[i];
+            if (tmp.StudyId == StudyId && tmp.TimeInSeconds == TimeInSeconds && tmp.SquareIndex == SquareIndex) {
+                return(tmp.LineNumber);
+            }
+        }
+
+        // no existing found, add a new one and keep track of it
+        LineNumber tmp;
+        tmp.StudyId = StudyId;
+        //tmp.TrailIndex = TrailIndex;
+        tmp.TimeInSeconds = TimeInSeconds;
+        tmp.SquareIndex = SquareIndex;
+        tmp.LineNumber = NextLineNumber;
+        LineNumbers.push_back(tmp);
+        NextLineNumber++;
+        return(tmp.LineNumber);
+    };
+
+};
+
+GlobalLineNumbers g_LineNumbers;
 
 SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
 {
@@ -24,22 +67,25 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     // inputs
     int InputIdx = 0;
     SCInputRef i_Symbol = sc.Input[++InputIdx];
-    SCInputRef i_Layout = sc.Input[++InputIdx];
-    SCInputRef i_Shape = sc.Input[++InputIdx];
     SCInputRef i_TicksOrVolume = sc.Input[++InputIdx];
-    SCInputRef i_CalcMethod = sc.Input[++InputIdx];
+    SCInputRef i_Layout = sc.Input[++InputIdx];
     SCInputRef i_NumRecordsToExamine = sc.Input[++InputIdx];
     SCInputRef i_NumSquares = sc.Input[++InputIdx];
     SCInputRef i_SquareSize = sc.Input[++InputIdx];
+    SCInputRef i_Reverse = sc.Input[++InputIdx];
+    SCInputRef i_CalcMethod = sc.Input[++InputIdx];
+    SCInputRef i_Shape = sc.Input[++InputIdx];
     SCInputRef i_OutlineColor = sc.Input[++InputIdx];
     SCInputRef i_StartColor = sc.Input[++InputIdx];
     SCInputRef i_EndColor = sc.Input[++InputIdx];
-    SCInputRef i_EnableText = sc.Input[++InputIdx];
-    SCInputRef i_TextColor = sc.Input[++InputIdx];
     SCInputRef i_FillTransparency = sc.Input[++InputIdx];
-    SCInputRef i_FontSize = sc.Input[++InputIdx];
     SCInputRef i_VerticalOffset = sc.Input[++InputIdx];
     SCInputRef i_HorizontalOffset = sc.Input[++InputIdx];
+    SCInputRef i_EnableText = sc.Input[++InputIdx];
+    SCInputRef i_TextColor = sc.Input[++InputIdx];
+    SCInputRef i_FontSize = sc.Input[++InputIdx];
+    SCInputRef i_DrawTrails = sc.Input[++InputIdx];
+    SCInputRef i_TrailsNumSeconds = sc.Input[++InputIdx];
 
     // subgraphs
     SCSubgraphRef s_Current = sc.Subgraph[0];
@@ -51,25 +97,18 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     {
         sc.GraphName = "Pace of Tape";
         sc.GraphRegion = 0;
+        sc.UpdateAlways = 1;
 
         i_Symbol.Name = "Use Different Symbol (Blank = Chart Symbol)";
         i_Symbol.SetString("");
-
-        i_Layout.Name = "Layout";
-        i_Layout.SetCustomInputStrings("Vertical;Horizontal");
-        i_Layout.SetCustomInputIndex(1);
-
-        i_Shape.Name = "Shape";
-        i_Shape.SetCustomInputStrings("Squares;Circles");
-        i_Shape.SetCustomInputIndex(0);
 
         i_TicksOrVolume.Name = "Calculate Ticks or Volume Per Second";
         i_TicksOrVolume.SetCustomInputStrings("Ticks;Volume");
         i_TicksOrVolume.SetCustomInputIndex(0);
 
-        i_CalcMethod.Name = "Calculation Method";
-        i_CalcMethod.SetCustomInputStrings("Original;Lagging Max");
-        i_CalcMethod.SetCustomInputIndex(1);
+        i_Layout.Name = "Layout";
+        i_Layout.SetCustomInputStrings("Vertical;Horizontal");
+        i_Layout.SetCustomInputIndex(0);
 
         i_NumRecordsToExamine.Name = "Number of seconds to examine";
         i_NumRecordsToExamine.SetInt(60);
@@ -80,6 +119,17 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         i_SquareSize.Name = "Square/Circle Size";
         i_SquareSize.SetInt(2);
 
+        i_Reverse.Name = "Reverse direction?";
+        i_Reverse.SetYesNo(0);
+
+        i_CalcMethod.Name = "Calculation Method";
+        i_CalcMethod.SetCustomInputStrings("Original;Lagging Max");
+        i_CalcMethod.SetCustomInputIndex(1);
+
+        i_Shape.Name = "Shape";
+        i_Shape.SetCustomInputStrings("Squares;Circles");
+        i_Shape.SetCustomInputIndex(0);
+
         i_OutlineColor.Name = "Outline Color";
         i_OutlineColor.SetColor(255,255,000);
 
@@ -89,23 +139,29 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         i_EndColor.Name = "End (fast) Color";
         i_EndColor.SetColor(255,000,000);
 
-        i_TextColor.Name = "Text Color";
-        i_TextColor.SetColor(255,255,000);
-
-        i_EnableText.Name = "Enable Text?";
-        i_EnableText.SetYesNo(0);
-
         i_FillTransparency.Name = "Fill Transparency % (0 to 100)";
         i_FillTransparency.SetInt(20);
-
-        i_FontSize.Name = "Font Size";
-        i_FontSize.SetInt(12);
 
         i_VerticalOffset.Name = "Vertical Offset";
         i_VerticalOffset.SetInt(0);
 
         i_HorizontalOffset.Name = "Horizontal Offset";
         i_HorizontalOffset.SetInt(5);
+
+        i_EnableText.Name = "Enable Text?";
+        i_EnableText.SetYesNo(0);
+
+        i_TextColor.Name = "> Text Color";
+        i_TextColor.SetColor(255,255,000);
+
+        i_FontSize.Name = "> Font Size";
+        i_FontSize.SetInt(12);
+
+        i_DrawTrails.Name = "Draw Trails?";
+        i_DrawTrails.SetYesNo(0);
+
+        i_TrailsNumSeconds.Name = "> # Seconds of Trails";
+        i_TrailsNumSeconds.SetInt(10);
 
 
         // subgraphs
@@ -117,9 +173,13 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
 
         s_PoT.Name      = "Pace of Tape";
         s_PoT.DrawStyle = DRAWSTYLE_IGNORE;
-
         return;
     }
+
+    int StudyID = sc.StudyGraphInstanceID;
+
+    // we need to count backwards in time from the last (most recent) execution that occurred
+    int NumSecondsToExamine = i_NumRecordsToExamine.GetInt();
 
     // struct to store raw T&S data
     c_SCTimeAndSalesArray TimeSales;
@@ -144,15 +204,15 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         return;
     }
 
+    // if user has study set to hidden, don't add drawing objects
+    if (sc.HideStudy) return;
+
     // number of squares to draw
     int NumSquares = i_NumSquares.GetInt();
 
     // we'll store totals of trades in a vector of this structure
     std::vector<RecordsPerUnit> Records;
     Records.clear();
-
-    // we need to count backwards in time from the last (most recent) execution that occurred
-    int NumSecondsToExamine = i_NumRecordsToExamine.GetInt();
 
     // safety check
     if (NumSecondsToExamine < NumSquares) NumSecondsToExamine = NumSquares;
@@ -239,21 +299,22 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         //sc.AddMessageToLog(msg, 1);
         SumRecords += Records[i].NumRecords;
         if (Records[i].NumRecords > MaxRecordsPerSecond) {
-            MaxRecordsTimeInSec = Records[i].TimeInSeconds;
 
-            if (CalcMethod == 0) {
-                // original calculation
-                // set max whenever a new max records is found
-                MaxRecordsPerSecond = Records[i].NumRecords;
-            }
-            else if (CalcMethod == 1) {
+            if (CalcMethod == 1 && (Records[i].TimeInSeconds < LastTimeInSec - (NumSecondsToExamine/NumSquares))) {
                 // "lagging maximum" calculation
                 // only set the max when it isn't happening right now, otherwise
                 // we'll never see the gauge max out during rapid pace
-                if (MaxRecordsTimeInSec < LastTimeInSec - (NumSecondsToExamine/NumSquares)) {
-                    MaxRecordsPerSecond = Records[i].NumRecords;
-                }
+                MaxRecordsPerSecond = Records[i].NumRecords;
+                MaxRecordsTimeInSec = Records[i].TimeInSeconds;
             }
+            else {
+                // original calculation
+                // set max whenever a new max records is found
+                MaxRecordsPerSecond = Records[i].NumRecords;
+                MaxRecordsTimeInSec = Records[i].TimeInSeconds;
+            }
+
+            Records[i].MaxRecords = MaxRecordsPerSecond;
         }
     }
     AvgRecords = SumRecords / NumSecondsToExamine;
@@ -341,9 +402,6 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
 // msg.Format("%d %d %d -> %d %d %d || %d %d %d", StartR, StartG, StartB, EndR, EndG, EndB, RDiff, GDiff, BDiff);
 // sc.AddMessageToLog(msg, 1);
 
-    // if user has study set to hidden, don't add drawing objects
-    if (sc.HideStudy) return;
-
     // grab vertical and horizontal offsets from inputs
     int VerticalOffset = i_VerticalOffset.GetInt();
     int HorizontalOffset = i_HorizontalOffset.GetInt();
@@ -352,83 +410,144 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
     // 0 = vertical, 1 = horizontal
     int Layout = i_Layout.GetIndex();
 
+    // grab bool for reversing direction
+    // ex: instead of left to right, make it right to left
+    bool IsReverse = i_Reverse.GetYesNo();
+
     // grab shape
     // 0 = squares
     // 1 = circles
     int Shape = i_Shape.GetIndex();
 
-    // draw the squares
-    for (int i=0; i<NumSquares; i++) {
+    // trails
+    bool DrawTrails = i_DrawTrails.GetYesNo();
+    int TrailsNumSeconds = i_TrailsNumSeconds.GetInt();
+    if (!DrawTrails) TrailsNumSeconds = 1;
 
-        // declare drawing tool object
-        s_UseTool Tool;
+    for (int j=0; j<TrailsNumSeconds; j++) {
 
-        // TODO add input for this
-        Tool.ChartNumber = 1;
+        int j_TimeInSeconds = Records[NumSecondsToExamine-j].TimeInSeconds;
 
-        // draw a rectangle
-        Tool.DrawingType = DRAWING_RECTANGLEHIGHLIGHT;
-        if (Shape == 1) {
-            Tool.DrawingType = DRAWING_ELLIPSEHIGHLIGHT;
+        // draw the squares
+        for (int i=0; i<NumSquares; i++) {
+
+            // declare drawing tool object
+            s_UseTool Tool;
+
+            // TODO add input for this
+            Tool.ChartNumber = sc.ChartNumber;
+
+            // draw a rectangle
+            Tool.DrawingType = DRAWING_RECTANGLEHIGHLIGHT;
+            if (Shape == 1) {
+                Tool.DrawingType = DRAWING_ELLIPSEHIGHLIGHT;
+            }
+
+            // line number HAS TO BE UNIQUE for each rectangle
+            // even across multiple instances of the study!
+            //Tool.LineNumber =  ((1+i) * sc.StudyGraphInstanceID) + ((1+j)*sc.StudyGraphInstanceID);
+            Tool.LineNumber = g_LineNumbers.AddLineNumber(StudyID, j_TimeInSeconds, i);
+//msg.Format("[%d] (%d, %d) = %d", StudyID, j_TimeInSeconds, i, Tool.LineNumber);
+//sc.AddMessageToLog(msg,1);
+
+            // use relative positioning
+            Tool.UseRelativeVerticalValues = 1;
+
+            // vertical layout
+            if (Layout == 0) {
+                // y-axis start of rectangle
+                Tool.BeginValue = SquareSize + (SquareSize*i) + VerticalOffset;
+
+                // y-axis end of rectangle 
+                Tool.EndValue = (2*SquareSize) + (SquareSize*i) + VerticalOffset;
+
+                // x-axis start of rectangle
+                Tool.BeginDateTime = 150 - (2*SquareSize*SquareMultiplier) - HorizontalOffset - (j*HorizontalOffset);
+
+                // y-axis end of rectangle
+                Tool.EndDateTime = 150-(SquareSize*SquareMultiplier) - HorizontalOffset - (j*HorizontalOffset);
+            }
+            // horizontal layout
+            else if (Layout == 1) {
+                Tool.BeginValue = VerticalOffset - (2*SquareSize) - (j*SquareSize) - (j*1);
+                Tool.EndValue = VerticalOffset - (SquareSize) - (j*SquareSize) - (j*1);
+                Tool.BeginDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) + (i*SquareSize);
+                Tool.EndDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) + ((i+1)*SquareSize);
+            }
+
+            // always add if new or adjust existing rectangle
+            Tool.AddMethod = UTAM_ADD_OR_ADJUST;
+
+            // width of square outline
+            Tool.LineWidth = 1;
+
+            // transparency set in input
+            Tool.TransparencyLevel = FillTransparency;
+
+            // outline color
+            Tool.Color = OutlineColor;
+
+            int cursor = i;
+            if (IsReverse) {
+                // modify the cursor
+                cursor = NumSquares-i-1;
+            }
+
+            // at max Pace of Tape, explicitly color the last rectangle fully opaque and with the end color
+            if (NumSquares == NumSquaresToColor && cursor == NumSquares-1) {
+                Tool.TransparencyLevel = 0;
+                Tool.SecondaryColor = EndColor;
+            }
+            // paint the rectangle with the calculated gradient RGB value based on where it is located
+            else if (cursor < NumSquaresToColor) {
+                Tool.SecondaryColor = RGB(StartR+(cursor*RInterval), StartG+(cursor*GInterval), StartB+(cursor*BInterval));
+            }
+            // empty rectangles should use the chart's bg color to appear empty
+            else {
+                Tool.SecondaryColor = sc.ChartBackgroundColor;
+            }
+
+            if (DrawTrails && j>0) {
+                int MaxTrailsTransparency = 95;
+                int TransparencyDiff = (MaxTrailsTransparency - Tool.TransparencyLevel);
+                int TransparencyInterval = TransparencyDiff / TrailsNumSeconds;
+                Tool.TransparencyLevel = MaxTrailsTransparency - (TransparencyDiff/3) + (j*TransparencyInterval);
+                if (Tool.TransparencyLevel > MaxTrailsTransparency) Tool.TransparencyLevel = MaxTrailsTransparency;
+                Tool.LineWidth = 1;
+                Tool.Color = sc.ChartBackgroundColor;
+
+                // calculate the pace of tape percentage
+                float TrailsPaceOfTape = (float)Records[NumSecondsToExamine-j].NumRecords / (float)MaxRecordsPerSecond;
+
+                // calculate number of squares to color in based on PoT
+                int TrailsNumSquaresToColor = TrailsPaceOfTape * NumSquares;
+
+                // TODO: smoothness adjustment...revisit this
+                if (TrailsPaceOfTape >= (TrailsNumSquaresToColor/NumSquares)) {
+                    TrailsNumSquaresToColor += 1;
+                }
+                else if (TrailsPaceOfTape < 1/NumSquares) {
+                    TrailsNumSquaresToColor = 0;
+                }
+
+                // more safety checks
+                if (TrailsPaceOfTape * 100 == 0) TrailsNumSquaresToColor = 0;
+
+                if (TrailsNumSquaresToColor > cursor) {
+                    Tool.SecondaryColor = RGB(StartR+(cursor*RInterval), StartG+(cursor*GInterval), StartB+(cursor*BInterval));
+                }
+                else {
+                    //Tool.SecondaryColor = sc.ChartBackgroundColor;
+                    if (Layout == 0) {
+                        sc.DeleteACSChartDrawing(sc.ChartNumber, TOOL_DELETE_CHARTDRAWING, Tool.LineNumber);
+                        continue;
+                    }
+                }
+            }
+
+            // draw the rectangle
+            sc.UseTool(Tool);
         }
-
-        // line number HAS TO BE UNIQUE for each rectangle
-        // even across multiple instances of the study!
-        Tool.LineNumber = (100*sc.StudyGraphInstanceID) + 20221115 + i;
-
-        // use relative positioning
-        Tool.UseRelativeVerticalValues = 1;
-
-        // vertical layout
-        if (Layout == 0) {
-            // y-axis start of rectangle
-            Tool.BeginValue = SquareSize + (SquareSize*i) + VerticalOffset;
-
-            // y-axis end of rectangle 
-            Tool.EndValue = (2*SquareSize) + (SquareSize*i) + VerticalOffset;
-
-            // x-axis start of rectangle
-            Tool.BeginDateTime = 150 - (2*SquareSize*SquareMultiplier) - HorizontalOffset;
-
-            // y-axis end of rectangle
-            Tool.EndDateTime = 150-(SquareSize*SquareMultiplier) - HorizontalOffset;
-        }
-        // horizontal layout
-        else if (Layout == 1) {
-            Tool.BeginValue = (2*SquareSize) + VerticalOffset;
-            Tool.EndValue = SquareSize + VerticalOffset;
-            Tool.BeginDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) + (i*SquareSize);
-            Tool.EndDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) + ((i+1)*SquareSize);
-        }
-
-        // always add if new or adjust existing rectangle
-        Tool.AddMethod = UTAM_ADD_OR_ADJUST;
-
-        // width of square outline
-        Tool.LineWidth = 1;
-
-        // transparency set in input
-        Tool.TransparencyLevel = FillTransparency;
-
-        // outline color
-        Tool.Color = OutlineColor;
-
-        // at max Pace of Tape, explicitly color the last rectangle fully opaque and with the end color
-        if (NumSquares == NumSquaresToColor && i == NumSquares-1) {
-            Tool.TransparencyLevel = 0;
-            Tool.SecondaryColor = EndColor;
-        }
-        // paint the rectangle with the calculated gradient RGB value based on where it is located
-        else if (i < NumSquaresToColor) {
-            Tool.SecondaryColor = RGB(StartR+(i*RInterval), StartG+(i*GInterval), StartB+(i*BInterval));
-        }
-        // empty rectangles should use the chart's bg color to appear empty
-        else {
-            Tool.SecondaryColor = sc.ChartBackgroundColor;
-        }
-
-        // draw the rectangle
-        sc.UseTool(Tool);
     }
 
     // populate subgraphs
@@ -444,17 +563,19 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         // CURR NUM RECORDS/SEC TEXT
         s_UseTool CurrNumRecordsTool;
         // TODO add input for this
-        CurrNumRecordsTool.ChartNumber = 1;
+        CurrNumRecordsTool.ChartNumber = sc.ChartNumber;
         CurrNumRecordsTool.DrawingType = DRAWING_TEXT;
         CurrNumRecordsTool.LineNumber = (100*sc.StudyGraphInstanceID) + 20221114;
         CurrNumRecordsTool.UseRelativeVerticalValues = 1;
-        if (Layout == 0) {
-            CurrNumRecordsTool.BeginValue = SquareSize + VerticalOffset;
-            CurrNumRecordsTool.BeginDateTime = 150 - (2*SquareSize*SquareMultiplier) - HorizontalOffset;
-        }
-        else if (Layout == 1) {
-            CurrNumRecordsTool.BeginValue = (2*SquareSize) + VerticalOffset;
-            CurrNumRecordsTool.BeginDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) - (2*SquareSize);
+        if (!sc.UserDrawnChartDrawingExists(sc.ChartNumber, CurrNumRecordsTool.LineNumber)) {
+            if (Layout == 0) {
+                CurrNumRecordsTool.BeginValue = SquareSize + VerticalOffset;
+                CurrNumRecordsTool.BeginDateTime = 150 - (2*SquareSize*SquareMultiplier) - HorizontalOffset;
+            }
+            else if (Layout == 1) {
+                CurrNumRecordsTool.BeginValue = (2*SquareSize) + VerticalOffset;
+                CurrNumRecordsTool.BeginDateTime = 150 - HorizontalOffset - (NumSquares*SquareSize*SquareMultiplier) - (2*SquareSize);
+            }
         }
         CurrNumRecordsTool.AddMethod = UTAM_ADD_OR_ADJUST;
         CurrNumRecordsTool.FontSize = i_FontSize.GetInt();
@@ -466,22 +587,25 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         else {
             CurrNumRecordsTool.Text.Format("%d/s", CurrNumRecords);
         }
+        CurrNumRecordsTool.AddAsUserDrawnDrawing = 1;
         sc.UseTool(CurrNumRecordsTool);
 
         // MAX NUMBER
         s_UseTool MaxNumRecordsTool;
         // TODO add input for this
-        MaxNumRecordsTool.ChartNumber = 1;
+        MaxNumRecordsTool.ChartNumber = sc.ChartNumber;
         MaxNumRecordsTool.DrawingType = DRAWING_TEXT;
         MaxNumRecordsTool.LineNumber = (100*sc.StudyGraphInstanceID) + 20221113;
         MaxNumRecordsTool.UseRelativeVerticalValues = 1;
-        if (Layout == 0) {
-            MaxNumRecordsTool.BeginValue = SquareSize + (SquareSize*(NumSquares+1)) + VerticalOffset;
-            MaxNumRecordsTool.BeginDateTime = 150 - (2*SquareSize*SquareMultiplier) - HorizontalOffset;
-        }
-        else if (Layout == 1) {
-            MaxNumRecordsTool.BeginValue = (2*SquareSize) + VerticalOffset;
-            MaxNumRecordsTool.BeginDateTime = 150 - HorizontalOffset - (SquareMultiplier*SquareSize);
+        if (!sc.UserDrawnChartDrawingExists(sc.ChartNumber, MaxNumRecordsTool.LineNumber)) {
+            if (Layout == 0) {
+                MaxNumRecordsTool.BeginValue = SquareSize + (SquareSize*(NumSquares+1)) + VerticalOffset;
+                MaxNumRecordsTool.BeginDateTime = 150 - (2*SquareSize*SquareMultiplier) - HorizontalOffset;
+            }
+            else if (Layout == 1) {
+                MaxNumRecordsTool.BeginValue = (2*SquareSize) + VerticalOffset;
+                MaxNumRecordsTool.BeginDateTime = 150 - HorizontalOffset - (SquareMultiplier*SquareSize);
+            }
         }
         MaxNumRecordsTool.AddMethod = UTAM_ADD_OR_ADJUST;
         MaxNumRecordsTool.FontSize = i_FontSize.GetInt();
@@ -493,27 +617,31 @@ SCSFExport scsf_PaceOfTape(SCStudyInterfaceRef sc)
         else {
             MaxNumRecordsTool.Text.Format("%d/s", MaxRecordsPerSecond);
         }
+        MaxNumRecordsTool.AddAsUserDrawnDrawing = 1;
         sc.UseTool(MaxNumRecordsTool);
 
         // Pace Of Tape TEXT
         s_UseTool PoTTool;
         // TODO add input for this
-        PoTTool.ChartNumber = 1;
+        PoTTool.ChartNumber = sc.ChartNumber;
         PoTTool.DrawingType = DRAWING_TEXT;
         PoTTool.LineNumber = (100*sc.StudyGraphInstanceID) + 20221112;
         PoTTool.UseRelativeVerticalValues = 1;
-        if (Layout == 0) {
-            PoTTool.BeginValue = SquareSize + (SquareSize*(NumSquares/2+1)) + VerticalOffset;
-            PoTTool.BeginDateTime = 150 - (4*SquareSize*SquareMultiplier) - HorizontalOffset;
-        }
-        if (Layout == 1) {
-            PoTTool.BeginValue = (2*SquareSize) + VerticalOffset + SquareSize;
-            PoTTool.BeginDateTime = 150 - HorizontalOffset - (SquareMultiplier*SquareSize*(NumSquares/2)) - (2*SquareSize);
+        if (!sc.UserDrawnChartDrawingExists(sc.ChartNumber, PoTTool.LineNumber)) {
+            if (Layout == 0) {
+                PoTTool.BeginValue = SquareSize + (SquareSize*(NumSquares/2+1)) + VerticalOffset;
+                PoTTool.BeginDateTime = 150 - (4*SquareSize*SquareMultiplier) - HorizontalOffset;
+            }
+            if (Layout == 1) {
+                PoTTool.BeginValue = (2*SquareSize) + VerticalOffset + SquareSize;
+                PoTTool.BeginDateTime = 150 - HorizontalOffset - (SquareMultiplier*SquareSize*(NumSquares/2)) - (2*SquareSize);
+            }
         }
         PoTTool.AddMethod = UTAM_ADD_OR_ADJUST;
         PoTTool.FontSize = i_FontSize.GetInt();
         PoTTool.Color = i_TextColor.GetColor();
         PoTTool.Text.Format("%.0f%%", 100*PaceOfTape);
+        PoTTool.AddAsUserDrawnDrawing = 1;
         sc.UseTool(PoTTool);
 
     }
