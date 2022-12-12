@@ -1,6 +1,7 @@
 #include "sierrachart.h"
+#include <vector>
 
-SCDLLName("Frozen Tundra")
+SCDLLName("Frozen Tundra - Auto Bar Period")
 
 /*
     Written by Frozen Tundra in FatCat's Discord Room
@@ -12,6 +13,9 @@ n_ACSIL::s_BarPeriod g_SourceBarPeriod;
 // semaphore to flip when target needs updating
 bool g_NeedToUpdateTarget = false;
 
+// keep track of chart ids
+std::vector<int> g_TargetChartIds;
+
 SCSFExport scsf_AutoBarPeriod(SCStudyInterfaceRef sc)
 {
 
@@ -19,6 +23,7 @@ SCSFExport scsf_AutoBarPeriod(SCStudyInterfaceRef sc)
     int InputIdx = 0;
     SCInputRef i_SourceOrTarget = sc.Input[++InputIdx];
     SCInputRef i_BarPeriodMultiple = sc.Input[++InputIdx];
+    SCInputRef i_BarPeriodDivisor = sc.Input[++InputIdx];
 
     // Configuration
     if (sc.SetDefaults)
@@ -30,9 +35,11 @@ SCSFExport scsf_AutoBarPeriod(SCStudyInterfaceRef sc)
         i_SourceOrTarget.SetCustomInputStrings("Source;Target");
         i_SourceOrTarget.SetCustomInputIndex(0);
 
-        i_BarPeriodMultiple.Name = "Custom Bar Period Divisor (Targets will be 1/x of this value)";
-        i_BarPeriodMultiple.SetInt(6);
-        i_BarPeriodMultiple.SetIntLimits(1,999);
+        i_BarPeriodMultiple.Name = "TARGET ONLY: Custom Bar Period Multiple";
+        i_BarPeriodMultiple.SetInt(1);
+
+        i_BarPeriodDivisor.Name = "TARGET ONLY: Custom Bar Period Divisor";
+        i_BarPeriodDivisor.SetInt(6);
         return;
     }
 
@@ -41,7 +48,21 @@ SCSFExport scsf_AutoBarPeriod(SCStudyInterfaceRef sc)
     int SourceOrTarget = i_SourceOrTarget.GetInt();
 
     // custom denominator value from input
-    int CustomDivisor = i_BarPeriodMultiple.GetInt();
+    int CustomMultiple = i_BarPeriodMultiple.GetInt();
+    int CustomDivisor = i_BarPeriodDivisor.GetInt();
+
+    if (sc.Index == 0 && SourceOrTarget == 1) {
+        // make sure this chart id exists in the array of targets
+        bool AlreadyAdded = false;
+        for (int i=0; i<g_TargetChartIds.size(); i++) {
+            if (g_TargetChartIds[i] == sc.ChartNumber) {
+                AlreadyAdded = true;
+            }
+        }
+        if (!AlreadyAdded) {
+            g_TargetChartIds.push_back(sc.ChartNumber);
+        }
+    }
 
     // the source chart
     if (SourceOrTarget == 0 && g_NeedToUpdateTarget == false) {
@@ -72,13 +93,27 @@ SCSFExport scsf_AutoBarPeriod(SCStudyInterfaceRef sc)
 
         // divide the source chart's bar period by this custom number
         // credit to AlohaDave: "divide by 6"
-        TargetBarPeriod.IntradayChartBarPeriodParameter1 /= CustomDivisor;
+        if (CustomMultiple != 1) {
+            TargetBarPeriod.IntradayChartBarPeriodParameter1 *= CustomMultiple;
+        }
+        if (CustomDivisor != 1) {
+            TargetBarPeriod.IntradayChartBarPeriodParameter1 /= CustomDivisor;
+        }
 
         // set it
         sc.SetBarPeriodParameters(TargetBarPeriod);
 
-        // flip our semaphore back
-        g_NeedToUpdateTarget = false;
+        // remove this chart from this list
+        for (int i=0; i<g_TargetChartIds.size(); i++) {
+            if (g_TargetChartIds[i] == sc.ChartNumber) {
+                g_TargetChartIds.erase(g_TargetChartIds.begin() + i);
+            }
+        }
+
+        if (g_TargetChartIds.size() == 0) {
+            // flip our semaphore back
+            g_NeedToUpdateTarget = false;
+        }
     }
 }
 
