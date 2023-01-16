@@ -294,7 +294,34 @@ SCSFExport scsf_GoogleSheetsLevelsImporter(SCStudyInterfaceRef sc)
                 Tool.AddMethod = UTAM_ADD_OR_ADJUST;
                 Tool.ShowPrice = i_ShowPriceOnChart.GetInt();
                 Tool.TransparencyLevel = i_Transparency.GetInt();
-                Tool.Text = note;
+                //Tool.Text = note;
+                //Tool.Text.Format("%s\nnewline test", note.GetChars());
+
+                // look for newline characters in the CSV file, replace them with actual new lines
+                // store note in this string obj
+                std::string NoteStr;
+                NoteStr = note.GetChars();
+
+                // store an escaped newline string literal here, for comparison
+                std::string NewLine = "\\n";
+
+                // position where the newline exists in the haystack
+                std::size_t IdxOfNewLine;
+
+                // pointer to where newline exists in haystack
+                char * p_substr = strstr(NoteStr.c_str(), NewLine.c_str());
+                if (p_substr != NULL) {
+                    // find index of newline
+                    IdxOfNewLine = NoteStr.find(NewLine);
+
+                    // copy in an actual newline where string literal newline was
+                    strncpy(p_substr, "\n", 1);
+
+                    // actual newline is only 1 char long, the string literal version is 2 chars
+                    // we need to erase the `n` from the string after where the `\` was
+                    NoteStr.erase(IdxOfNewLine + 1, 1);
+                }
+                Tool.Text.Format("%s", NoteStr.c_str());
                 Tool.LineNumber = LineNumber;
                 sc.UseTool(Tool);
             }
