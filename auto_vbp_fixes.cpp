@@ -3,46 +3,46 @@
 SCDLLName("Frozen Tundra - Auto Volume by Price")
 
 /*
-    Written by Malykubo and Frozen Tundra in FatCat's Discord Room
+Written by Malykubo and Frozen Tundra in FatCat's Discord Room
 */
 
 SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
 {
 	SCInputRef useVap = sc.Input[0];
-    // multiplier that will determine the granularity of VP bars we'll see as we switch symbols
-    // the lower the number, the thicker and fewer bars there will be
-    // the higher the magic number, the thinner and more VP bars there will be
-    SCInputRef i_DetailLevel = sc.Input[1];
+	// multiplier that will determine the granularity of VP bars we'll see as we switch symbols
+	// the lower the number, the thicker and fewer bars there will be
+	// the higher the magic number, the thinner and more VP bars there will be
+	SCInputRef i_DetailLevel = sc.Input[1];
 	SCInputRef i_Step = sc.Input[2];
-	
+
 	//number of inputs to set target VBP studies
 	const int MAX_VBP_STUDIES = 20;
-	
-    // Configuration
-    if (sc.SetDefaults)
-    {
-        sc.GraphRegion = 0;
+
+	// Configuration
+	if (sc.SetDefaults)
+	{
+		sc.GraphRegion = 0;
 		sc.GraphName = "Auto set VbPs ticks per bar";
 		sc.AutoLoop = 0; 
 		//update always so we don't have to wait for incoming ticks (market closed)
 		sc.UpdateAlways = 1;
-		
+
 		//INPUTS CONFIG
 		useVap.Name = "Use VAP setting in Chart Settings";
-        useVap.SetYesNo(0);
-        i_DetailLevel.Name = "VbPs' detail level";
-        i_DetailLevel.SetInt(100);
+		useVap.SetYesNo(0);
+		i_DetailLevel.Name = "VbPs' detail level";
+		i_DetailLevel.SetInt(100);
 		i_Step.Name = "Tick-size step to increase/decrease detail";
 		i_Step.SetInt(4);
-		
+
 		for(int x = 0; x < MAX_VBP_STUDIES; x++)
 		{
 			sc.Input[10 + x].Name.Format("%i.Target VbP study", x + 1);
 			sc.Input[10 + x].SetStudyID(0);
 		}
-		
-        return;
-    }
+
+		return;
+	}
 	
 	if(sc.IsFullRecalculation)
 	{
