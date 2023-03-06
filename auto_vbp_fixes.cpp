@@ -46,9 +46,9 @@ SCSFExport scsf_AutoVbP(SCStudyInterfaceRef sc)
 	
 	if(sc.IsFullRecalculation)
 	{
-		//set step to the nearest multiplier of sc.VolumeAtPriceMultiplier to avoid problems
+		//set step to the nearest multiplier of sc.VolumeAtPriceMultiplier to avoid VbP redraw problems
 		int step = i_Step.GetInt();
-		i_Step.SetInt(step - step % sc.VolumeAtPriceMultiplier);
+		i_Step.SetInt(max(step - step % sc.VolumeAtPriceMultiplier, sc.VolumeAtPriceMultiplier) );
 	}
 	
 	// VbP Ticks Per Volume Bar is input 32, ID 31
