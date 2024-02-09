@@ -4,7 +4,7 @@
 #include <cstring>
 using std::string;
 SCDLLName("Frozen Tundra - Tape On Chart")
-std::string REVISION = "2023-12-30b";
+std::string REVISION = "2024-02-08a";
 
 // NOTE: This study uses Windows GDI functions for drawing.
 //       If you have OpenGL enabled in Global Settings,
@@ -442,6 +442,8 @@ SCSFExport scsf_TapeOnChart(SCStudyInterfaceRef sc)
     SCInputRef i_NumPinnedPrints         = sc.Input[++InputIdx];
     SCInputRef i_NumSecondsBeforeFade    = sc.Input[++InputIdx];
     SCInputRef i_MinNumPrintsForIceberg  = sc.Input[++InputIdx];
+    SCInputRef i_NumDigitsDisplay        = sc.Input[++InputIdx];
+    SCInputRef i_NumDigitsDecimal        = sc.Input[++InputIdx];
     SCInputRef i_FontSize                = sc.Input[++InputIdx];
     SCInputRef i_xOffset                 = sc.Input[++InputIdx];
     SCInputRef i_yOffset                 = sc.Input[++InputIdx];
@@ -505,6 +507,12 @@ SCSFExport scsf_TapeOnChart(SCStudyInterfaceRef sc)
 
         i_MinNumPrintsForIceberg.Name = "Minimum number of consecutive prints needed for iceberg";
         i_MinNumPrintsForIceberg.SetInt(3);
+
+        i_NumDigitsDisplay.Name = "Display X number of digits (starting from right side) on tape";
+        i_NumDigitsDisplay.SetInt(6);
+
+        i_NumDigitsDecimal.Name = "Display X number of decimal places";
+        i_NumDigitsDecimal.SetInt(2);
 
         i_FontSize.Name = "Font Size";
         i_FontSize.SetInt(20);
@@ -829,6 +837,8 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     SCInputRef i_NumPinnedPrints         = sc.Input[++InputIdx];
     SCInputRef i_NumSecondsBeforeFade    = sc.Input[++InputIdx];
     SCInputRef i_MinNumPrintsForIceberg  = sc.Input[++InputIdx];
+    SCInputRef i_NumDigitsDisplay        = sc.Input[++InputIdx];
+    SCInputRef i_NumDigitsDecimal        = sc.Input[++InputIdx];
     SCInputRef i_FontSize                = sc.Input[++InputIdx];
     SCInputRef i_xOffset                 = sc.Input[++InputIdx];
     SCInputRef i_yOffset                 = sc.Input[++InputIdx];
@@ -856,6 +866,8 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
     int NUM_LARGE_PRINTS_TO_DISPLAY = i_NumPinnedPrints.GetInt();
     int NUM_SECONDS_BEFORE_FADE = i_NumSecondsBeforeFade.GetInt();
     int NUM_PRINTS_FOR_ICEBERG = i_MinNumPrintsForIceberg.GetInt();
+    int NUM_DIGITS_DISPLAY = i_NumDigitsDisplay.GetInt();
+    int NUM_DIGITS_DECIMAL = i_NumDigitsDecimal.GetInt();
     int HIGH_VOLUME_THRESHOLD = i_LargeExecutionThreshold.GetInt();
     int HUGE_VOLUME_THRESHOLD = i_HugeExecutionThreshold.GetInt();
     int MIN_VOLUME_FILTER = i_MinVolumeFilter.GetInt();
@@ -1008,12 +1020,23 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
 
                 int DisplayVolume = Volume;
                 if (sc.SecurityType() == n_ACSIL::SECURITY_TYPE_STOCK) DisplayVolume = Volume/100;
-                Output.Format("%d     %.2f", DisplayVolume, Price);
+
+                // control over width and precision
+                SCString DisplayPrice;
+                DisplayPrice.Format("%d%.*f", (int)floor(Price), NUM_DIGITS_DECIMAL, Price);
+
+                // NOTE: add 1 for decimal point
+                DisplayPrice = DisplayPrice.Right(NUM_DIGITS_DISPLAY + 1);
+
+                Output.Format("%d     %s", DisplayVolume, DisplayPrice.GetChars());
                 //Output.Format("%d %d     %.2f", Sequence, DisplayVolume, Price);
                 //Output.Format("%d: %.2f %d", DateTime.GetSecond(), Price, Volume/100);
                 //Output.Format("%d x %d", x, y);
                 //sc.AddMessageToLog(Output, 0);
                 ::TextOut(DeviceContext, x, y, Output, Output.GetLength());
+
+                // EXPECTED:  %02.2f => 08.25
+                // ACTUAL:    %02.2f => 5008.25
 
             } // end of raw time and sales loop
 
@@ -1085,7 +1108,11 @@ void DrawToChart(HWND WindowHandle, HDC DeviceContext, SCStudyInterfaceRef sc)
                     y += 1 * FontSize;
                     y += i * FontSize * 1.05;
 
-                    Output.Format("%d     %.2f", Volume/100, Price);
+                    // TODO - only divide by 100 on equities
+                    int DisplayVolume = Volume;
+                    if (sc.SecurityType() == n_ACSIL::SECURITY_TYPE_STOCK) DisplayVolume = Volume/100;
+
+                    Output.Format("%d     %.2f", DisplayVolume, Price);
                     ::TextOut(DeviceContext, x, y, Output, Output.GetLength());
 
                     Counter++;
