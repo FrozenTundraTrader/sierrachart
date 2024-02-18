@@ -148,6 +148,9 @@ SCSFExport scsf_AutoRiskReward(SCStudyInterfaceRef sc)
     Tool.AddMethod = UTAM_ADD_OR_ADJUST;
 
     Tool.DrawingType = DRAWING_REWARD_RISK;
+    
+    //interaction with user drawing
+    Tool.AddAsUserDrawnDrawing = 1;
 
     Tool.BeginIndex = EntryIndex;
     Tool.BeginValue = StopPrice;
